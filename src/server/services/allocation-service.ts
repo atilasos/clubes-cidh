@@ -3,6 +3,7 @@ type Semester = "S1" | "S2";
 type StudentInput = {
   id: string;
   name: string;
+  eligibleSlotIds: string[];
 };
 
 type ClubInput = {
@@ -74,60 +75,76 @@ export function allocateUnplacedStudents(input: {
   const results: AllocationResult[] = [];
 
   for (const student of input.students) {
-    const available = input.clubs.filter(
-      (club) => getPlacementCount(workingPlacements, club.id) < getClubCapacity(club),
+    const occupiedSlotIds = new Set(
+      workingPlacements.filter((placement) => placement.studentId === student.id).map((placement) => placement.slotId),
     );
-    if (available.length === 0) {
-      continue;
-    }
+    const pendingSlotIds = student.eligibleSlotIds.filter((slotId) => !occupiedSlotIds.has(slotId));
 
-    const sortedCandidates = [...available].sort((left, right) => {
-      const leftRepeated = hasRepeatedClub(
-        input.studentClubHistory,
-        student.id,
-        left.id,
-        input.schoolYear,
-        input.semester,
-      );
-      const rightRepeated = hasRepeatedClub(
-        input.studentClubHistory,
-        student.id,
-        right.id,
-        input.schoolYear,
-        input.semester,
+    for (const slotId of pendingSlotIds) {
+      const available = input.clubs.filter(
+        (club) =>
+          club.slotId === slotId &&
+          getPlacementCount(workingPlacements, club.id) < getClubCapacity(club),
       );
 
-      if (leftRepeated !== rightRepeated) {
-        return Number(leftRepeated) - Number(rightRepeated);
+      if (available.length === 0) {
+        continue;
       }
 
-      return left.name.localeCompare(right.name);
-    });
+      const sortedCandidates = [...available].sort((left, right) => {
+        const leftRepeated = hasRepeatedClub(
+          input.studentClubHistory,
+          student.id,
+          left.id,
+          input.schoolYear,
+          input.semester,
+        );
+        const rightRepeated = hasRepeatedClub(
+          input.studentClubHistory,
+          student.id,
+          right.id,
+          input.schoolYear,
+          input.semester,
+        );
 
-    const chosen = sortedCandidates[0];
-    const repeatedClub = hasRepeatedClub(
-      input.studentClubHistory,
-      student.id,
-      chosen.id,
-      input.schoolYear,
-      input.semester,
-    );
+        if (leftRepeated !== rightRepeated) {
+          return Number(leftRepeated) - Number(rightRepeated);
+        }
 
-    workingPlacements.push({
-      studentId: student.id,
-      clubId: chosen.id,
-      slotId: chosen.slotId,
-    });
+        const leftLoad = getPlacementCount(workingPlacements, left.id);
+        const rightLoad = getPlacementCount(workingPlacements, right.id);
+        if (leftLoad !== rightLoad) {
+          return leftLoad - rightLoad;
+        }
 
-    results.push({
-      studentId: student.id,
-      clubId: chosen.id,
-      slotId: chosen.slotId,
-      repeatedClub,
-      reason: repeatedClub
-        ? "No alternative remained, so an inevitable repeat was recorded."
-        : "Allocated to a non-repeated club with remaining capacity.",
-    });
+        return left.name.localeCompare(right.name);
+      });
+
+      const chosen = sortedCandidates[0];
+      const repeatedClub = hasRepeatedClub(
+        input.studentClubHistory,
+        student.id,
+        chosen.id,
+        input.schoolYear,
+        input.semester,
+      );
+
+      workingPlacements.push({
+        studentId: student.id,
+        clubId: chosen.id,
+        slotId: chosen.slotId,
+      });
+
+      results.push({
+        studentId: student.id,
+        clubId: chosen.id,
+        slotId: chosen.slotId,
+        repeatedClub,
+        reason: repeatedClub
+          ? "No alternative remained in this slot, so an inevitable repeat was recorded."
+          : "Allocated to an eligible club with remaining capacity in this slot.",
+      });
+    }
   }
 
   return results;

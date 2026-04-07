@@ -1,5 +1,5 @@
 import { ClubCapacitySummary, getSlotAvailability } from "@/server/services/capacity-service";
-import { Campaign, DataStore, EligibleClubOption, Student } from "@/server/types";
+import { Campaign, DataStore, EligibleClubOption, Student, TimeSlot } from "@/server/types";
 
 function isGradeEligible(student: Student, eligibleGrades: string[]) {
   return eligibleGrades.length === 0 || eligibleGrades.includes(student.grade);
@@ -46,6 +46,12 @@ export function getEligibleClubsForStudent(input: {
   });
 }
 
+export function getEligibleTimeSlotsForStudent(store: DataStore, campaign: Campaign, student: Student): TimeSlot[] {
+  return store.timeSlots
+    .filter((slot) => slot.campaignId === campaign.id)
+    .filter((slot) => isGradeEligible(student, slot.eligibleGrades));
+}
+
 export function getEligibleClubOptionsForStudent(store: DataStore, campaign: Campaign, student: Student): EligibleClubOption[] {
   const occupiedSlotIds = new Set(
     store.placements
@@ -53,10 +59,8 @@ export function getEligibleClubOptionsForStudent(store: DataStore, campaign: Cam
       .map((entry) => entry.slotId),
   );
 
-  return store.timeSlots
-    .filter((slot) => slot.campaignId === campaign.id)
+  return getEligibleTimeSlotsForStudent(store, campaign, student)
     .filter((slot) => !occupiedSlotIds.has(slot.id))
-    .filter((slot) => isGradeEligible(student, slot.eligibleGrades))
     .map((slot) => ({
       slot,
       clubs: getSlotAvailability(store, campaign.id, slot.id)

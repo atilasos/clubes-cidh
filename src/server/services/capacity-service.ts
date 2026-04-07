@@ -51,7 +51,21 @@ export function getClubCapacity(store: DataStore, club: Club) {
   if (!campaign) {
     throw new Error("Campanha não encontrada para cálculo de vagas.");
   }
-  return club.capacityOverride ?? campaign.defaultCapacity;
+
+  if (club.capacityOverride != null) {
+    return club.capacityOverride;
+  }
+
+  const slot = store.timeSlots.find((entry) => entry.id === club.slotId);
+  if (slot?.capacityDivisor) {
+    const eligibleStudents = store.students.filter(
+      (student) => slot.eligibleGrades.length === 0 || slot.eligibleGrades.includes(student.grade),
+    ).length;
+
+    return Math.max(slot.minimumPerClub ?? 1, Math.ceil(eligibleStudents / slot.capacityDivisor));
+  }
+
+  return campaign.defaultCapacity;
 }
 
 export function getPlacementCount(store: DataStore, clubId: string) {
