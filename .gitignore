@@ -1,0 +1,14 @@
+.omx/
+node_modules/
+.next/
+coverage/
+.data/
+dist/
+build/
+out/
+.env
+.env.*
+!.env.example
+npm-debug.log*
+tsconfig.tsbuildinfo
+.DS_Store

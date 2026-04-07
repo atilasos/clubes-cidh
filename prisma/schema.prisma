@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Student {
+  id            String   @id @default(cuid())
+  name          String
+  grade         String
+  className     String
+  cc            String?
+  nif           String?
+  studentNumber String   @unique
+  createdAt     DateTime @default(now())
+}
+
+model Campaign {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  semester   Int
+  schoolYear String
+  status     String
+  startsAt   DateTime
+  endsAt     DateTime
+  createdAt  DateTime @default(now())
+}
