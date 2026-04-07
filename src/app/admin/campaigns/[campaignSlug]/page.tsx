@@ -19,6 +19,53 @@ type CampaignDetailPageProps = {
   }>;
 };
 
+function statusLabel(status: string) {
+  return {
+    draft: "rascunho",
+    open: "aberta",
+    closed: "fechada",
+    finalized: "finalizada",
+    archived: "arquivada",
+  }[status] ?? status;
+}
+
+function documentTypeLabel(type: string) {
+  return {
+    club_list: "lista por clube",
+    student_schedule: "horário individual",
+  }[type] ?? type;
+}
+
+function auditActionLabel(action: string) {
+  return {
+    students_imported: "alunos importados",
+    campaign_opened: "campanha aberta",
+    campaign_created: "campanha criada",
+    campaign_closed: "campanha fechada",
+    campaign_archived: "campanha arquivada",
+    access_export_generated: "pacote de acesso gerado",
+    reservation_created: "reserva criada",
+    placement_committed: "colocação confirmada",
+    allocation_committed: "distribuição confirmada",
+    capacity_override_configured: "ajuste manual de vagas configurado",
+    placement_exception_recorded: "exceção de colocação registada",
+    placement_exception_updated: "exceção de colocação atualizada",
+  }[action] ?? action;
+}
+
+function placementSourceLabel(source: string) {
+  return {
+    reservation: "reserva",
+    submission: "submissão",
+    allocation: "distribuição",
+    manual_exception: "exceção manual",
+  }[source] ?? source;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-PT", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
 export default async function AdminCampaignDetailPage({ params, searchParams }: CampaignDetailPageProps) {
   await requireAdminPage();
   const { campaignSlug } = await params;
@@ -127,12 +174,12 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
 
   return (
     <PageShell
-      badge="Admin / Detalhe da campanha"
+      badge="Administração / Detalhe da campanha"
       title={detail.campaign.title}
       description="Vista operacional da campanha: revisão de vagas, exportação de acessos, distribuição automática, gestão de exceções e finalização com documentos gerados."
       breadcrumbs={[
         { label: "Início", href: "/" },
-        { label: "Admin", href: "/admin" },
+        { label: "Administração", href: "/admin" },
         { label: "Campanhas", href: "/admin/campaigns" },
         { label: campaignSlug },
       ]}
@@ -140,10 +187,10 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
       <div className="grid two">
         <InfoCard title="Resumo" eyebrow="Campanha">
           <ul>
-            <li>Estado: {detail.campaign.status}</li>
-            <li>Semestre: {detail.campaign.semester}º semestre</li>
+            <li>Estado: {statusLabel(detail.campaign.status)}</li>
+            <li>Semestre: {detail.campaign.semester}.º semestre</li>
             <li>Ano letivo: {detail.campaign.schoolYear}</li>
-            <li>Capacidade por defeito: {detail.campaign.defaultCapacity}</li>
+            <li>Capacidade predefinida: {detail.campaign.defaultCapacity}</li>
             <li>Horários pendentes: {detail.pendingTargets.length}</li>
             <li>Documentos gerados: {detail.documents.length}</li>
           </ul>
@@ -175,11 +222,11 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
             <>
               <div className="row">
                 <Link href={`${pageUrl}?preview=1` as Route}>
-                  <button className="secondary">Ver dry-run da distribuição</button>
+                  <button className="secondary">Ver simulação da distribuição</button>
                 </Link>
                 {resolvedSearchParams.preview === "1" ? (
                   <Link href={pageRoute}>
-                    <button className="secondary">Ocultar dry-run</button>
+                    <button className="secondary">Ocultar simulação</button>
                   </Link>
                 ) : null}
               </div>
@@ -204,7 +251,7 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
                 <div>
                   <strong>{slot.label}</strong>
                   <p className="status">
-                    Elegível para: {slot.eligibleGrades.join(", ") || "todos os anos"} · regra: divisor {slot.capacityDivisor ?? "—"} · mínimo {slot.minimumPerClub ?? 1}
+                    Elegível para: {slot.eligibleGrades.join(", ") || "todos os anos"} · regra de vagas: divisor {slot.capacityDivisor ?? "—"} · mínimo {slot.minimumPerClub ?? 1}
                   </p>
                 </div>
                 <div className="table-wrap">
@@ -213,7 +260,7 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
                       <tr>
                         <th>Clube</th>
                         <th>Professor</th>
-                        <th>Override</th>
+                        <th>Ajuste manual</th>
                         <th>Vagas restantes</th>
                         <th>Colocações</th>
                       </tr>
@@ -270,7 +317,7 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
                           <ul>
                             {club.placements.map((placement) => (
                               <li key={placement.id}>
-                                {placement.student?.name ?? placement.studentId} · {placement.source}
+                                {placement.student?.name ?? placement.studentId} · {placementSourceLabel(placement.source)}
                               </li>
                             ))}
                           </ul>
@@ -325,9 +372,9 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
           ) : null}
         </InfoCard>
 
-        <InfoCard title="Dry-run e outputs" eyebrow="Distribuição">
+        <InfoCard title="Simulação e resultados" eyebrow="Distribuição">
           {preview.length === 0 && resolvedSearchParams.preview === "1" ? (
-            <p className="status">O dry-run não encontrou novas colocações a atribuir.</p>
+            <p className="status">A simulação não encontrou novas colocações a atribuir.</p>
           ) : null}
           {preview.length > 0 ? (
             <div className="table-wrap">
@@ -361,7 +408,7 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
               </table>
             </div>
           ) : (
-            <p className="status">Use o dry-run para rever a distribuição automática antes do commit.</p>
+            <p className="status">Use a simulação para rever a distribuição automática antes da confirmação.</p>
           )}
 
           <section className="card stack">
@@ -372,7 +419,7 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
                   <strong>Último pacote de acesso</strong>
                 </p>
                 <p className="status">
-                  {detail.accessExports[0].rows.length} linha(s) · {new Date(detail.accessExports[0].createdAt).toLocaleString("en-US")}
+                  {detail.accessExports[0].rows.length} linha(s) · {formatDateTime(detail.accessExports[0].createdAt)}
                 </p>
               </div>
             ) : (
@@ -387,7 +434,7 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
                         <strong>{document.fileName}</strong>
                       </a>
                       <br />
-                      <span className="status">{document.documentType} · {new Date(document.createdAt).toLocaleString("en-US")}</span>
+                      <span className="status">{documentTypeLabel(document.documentType)} · {formatDateTime(document.createdAt)}</span>
                     </li>
                 ))}
               </ul>
@@ -398,16 +445,16 @@ export default async function AdminCampaignDetailPage({ params, searchParams }: 
         </InfoCard>
       </div>
 
-      <InfoCard title="Audit log da campanha" eyebrow="Rastreabilidade">
+      <InfoCard title="Registo de auditoria da campanha" eyebrow="Rastreabilidade">
         {detail.auditLogs.length === 0 ? (
           <p className="status">Sem eventos associados a esta campanha.</p>
         ) : (
           <ul>
             {detail.auditLogs.slice(0, 12).map((entry) => (
               <li key={entry.id}>
-                <strong>{entry.action}</strong>
+                <strong>{auditActionLabel(entry.action)}</strong>
                 <br />
-                <span className="status">{entry.actor} · {new Date(entry.createdAt).toLocaleString("en-US")}</span>
+                <span className="status">{entry.actor} · {formatDateTime(entry.createdAt)}</span>
               </li>
             ))}
           </ul>

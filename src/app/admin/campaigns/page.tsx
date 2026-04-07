@@ -4,18 +4,32 @@ import { InfoCard, PageShell } from "@/components/page-shell";
 import { requireAdminPage } from "@/server/auth/admin-guard";
 import { getDashboardData } from "@/server/services/dashboard-service";
 
+function statusLabel(status: string) {
+  return {
+    draft: "rascunho",
+    open: "aberta",
+    closed: "fechada",
+    finalized: "finalizada",
+    archived: "arquivada",
+  }[status] ?? status;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("pt-PT", { dateStyle: "short" }).format(new Date(value));
+}
+
 export default async function AdminCampaignsPage() {
   await requireAdminPage();
   const dashboard = await getDashboardData();
 
   return (
     <PageShell
-      badge="Admin / Campanhas"
+      badge="Administração / Campanhas"
       title="Campanhas"
       description="Lista operacional das campanhas existentes, com estado, calendário e ligação direta ao detalhe para exportação, distribuição e finalização."
       breadcrumbs={[
         { label: "Início", href: "/" },
-        { label: "Admin", href: "/admin" },
+          { label: "Administração", href: "/admin" },
         { label: "Campanhas" },
       ]}
     >
@@ -44,11 +58,11 @@ export default async function AdminCampaignsPage() {
                         <br />
                         <span className="status">{campaign.schoolYear}</span>
                       </td>
-                      <td>{campaign.status}</td>
-                      <td>{campaign.semester}º semestre</td>
+                      <td>{statusLabel(campaign.status)}</td>
+                      <td>{campaign.semester}.º semestre</td>
                       <td>
                         <span className="status">
-                          {new Date(campaign.startsAt).toLocaleDateString("en-US")} → {new Date(campaign.endsAt).toLocaleDateString("en-US")}
+                          {formatDate(campaign.startsAt)} → {formatDate(campaign.endsAt)}
                         </span>
                       </td>
                       <td>{campaign.placements.length}</td>
@@ -66,9 +80,9 @@ export default async function AdminCampaignsPage() {
         </InfoCard>
         <InfoCard title="Checklist operacional" eyebrow="Fluxo">
           <ol>
-            <li>Criar a campanha e rever slots, clubes e vagas.</li>
+            <li>Criar a campanha e rever horários, clubes e vagas.</li>
             <li>Gerar o pacote de acesso para envio externo.</li>
-            <li>Executar preview da distribuição antes do commit final.</li>
+            <li>Executar a simulação da distribuição antes da confirmação final.</li>
             <li>Registar exceções explícitas quando necessário.</li>
             <li>Finalizar apenas depois de resolver todos os horários pendentes.</li>
           </ol>
