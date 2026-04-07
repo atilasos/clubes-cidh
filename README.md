@@ -24,18 +24,18 @@ O repositório já contém uma base funcional de MVP com:
 
 A aplicação suporta dois modos de persistência:
 - **Prisma + PostgreSQL**, quando `DATABASE_URL` está definido e a base de dados está migrada;
-- **store JSON local** em `./.data/clubes-db.json` como fallback de desenvolvimento quando não existe ligação a base de dados.
+- **armazenamento JSON local** em `./.data/clubes-db.json` como alternativa de desenvolvimento quando não existe ligação à base de dados.
 
 O schema Prisma completo está em `prisma/schema.prisma` e a migração inicial está em `prisma/migrations/`.
 
-## Stack
+## Tecnologias
 
 - Next.js 15
 - React 19
 - TypeScript
 - Vitest
 - ESLint
-- Prisma + PostgreSQL (com fallback local JSON para desenvolvimento)
+- Prisma + PostgreSQL (com alternativa local em JSON para desenvolvimento)
 - `pdf-lib` (base para geração de documentos)
 
 ## Como correr localmente
@@ -53,7 +53,7 @@ npm install
 
 ### Configuração inicial
 
-Crie um ficheiro `.env` a partir do exemplo e defina a password do painel administrativo:
+Crie um ficheiro `.env` a partir do exemplo e defina a palavra-passe do painel administrativo:
 
 ```bash
 cp .env.example .env
@@ -84,7 +84,25 @@ PORT=3001 npm run dev
 
 - página inicial: `http://localhost:3000`
 - painel administrativo: `http://localhost:3000/admin`
-- password do admin: valor definido em `ADMIN_PASSWORD`
+- palavra-passe da administração: valor definido em `ADMIN_PASSWORD`
+
+## Demonstração rápida
+
+Se quiser preparar uma demonstração para a direção, use estes recursos:
+
+- guião: `docs/guiao-demonstracao-diretor.md`
+- alunos fictícios para importação: `demo/director-demo-students.csv`
+- configuração da campanha: `demo/director-demo-campaign.md`
+- horários para copiar/colar: `demo/director-demo-slots.txt`
+- clubes para copiar/colar: `demo/director-demo-clubs.txt`
+- reservas para copiar/colar: `demo/director-demo-reservations.txt`
+- listagem rápida dos códigos exportados: `node demo/show-latest-access-package.mjs`
+
+Para repetir a demonstração num ambiente local com armazenamento JSON, limpe os dados antes de começar:
+
+```bash
+rm -f .data/clubes-db.json
+```
 
 ## Scripts úteis
 
@@ -164,8 +182,8 @@ Cobertura inicial da lógica crítica do domínio.
 
 Ainda falta completar, entre outras coisas:
 - endurecimento operacional adicional para produção;
-- evolução da UI administrativa para edição mais rica após criação inicial;
-- integração do fluxo admin com dados reais em UI mais completa;
+- evolução da interface administrativa para edição mais rica após criação inicial;
+- integração do fluxo administrativo com dados reais numa interface mais completa;
 - endurecimento adicional do fluxo público para produção.
 
 ## GitHub
