@@ -182,7 +182,7 @@ describe('campaign workflows integration', () => {
         ],
         reservations: [{ studentNumber: '2025001', clubName: 'Robótica', reason: 'Reserva ambígua' }],
       }),
-    ).toThrow(/horário\/slot/i);
+    ).toThrow(/horário/i);
   });
 
   it('creates a dry-run allocation preview without persisting and commits placements when confirmed', () => {

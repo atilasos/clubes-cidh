@@ -34,7 +34,7 @@ describe('allocation-service', () => {
         studentId: 'bruno',
         clubId: 'science-lab',
         repeatedClub: true,
-        reason: expect.stringMatching(/no alternative|inevitable repeat/i),
+        reason: expect.stringMatching(/não restou alternativa|repetição inevitável/i),
       }),
     ]);
   });
