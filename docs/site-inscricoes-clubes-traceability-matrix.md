@@ -6,18 +6,18 @@ Ligar requisitos do PRD a evidência técnica, testes e revisão para reduzir la
 | Área | Requisito / comportamento | Evidência esperada | Testes mínimos |
 | --- | --- | --- | --- |
 | Importação | Importar alunos válidos e rejeitar linhas inválidas com relatório | Serviço de importação com relatório estruturado | Integração: importação com rejeições |
-| Campanha | Criar campanha com slots, clubes, vagas e reservas | UI/admin + serviços com audit log | Integração: criação de campanha |
-| Vagas | Calcular regra default e permitir override manual | `capacity-service` + evento auditado | Unit: `capacity-service` |
-| Acesso público | Identificação com CC/NIF/número + código de acesso | Validação server-side, mensagens neutras, rate limit | Integração: identificação pública |
-| Elegibilidade | Mostrar apenas clubes elegíveis e disponíveis | Serviço dedicado de elegibilidade | Unit: `eligibility-service` |
-| Duplicação | Impedir duas escolhas válidas no mesmo slot | Guardas no serviço de submissão | Unit: `enrollment-service` |
-| Concorrência | Última vaga nunca gera oversubscription | Transação/lock + erro controlado | Integração: submissões concorrentes |
-| Revisão | Admin revê listas antes da finalização | Ecrã/lista com estados coerentes | E2E: revisão pós-prazo |
-| Distribuição | Alocar alunos sem colocação evitando repetições | `allocation-service` com razões auditáveis | Unit + integração: distribuição |
-| PDFs | Gerar listas por clube e horário por aluno | Serviço de snapshot + geração de documentos | Integração: finalização/PDFs |
-| Finalização | Bloquear conclusão com alunos por colocar sem exceção | Guard de finalização | E2E: finalização bloqueada/desbloqueada |
-| Arquivo | Reutilizar histórico no 1.º semestre e congelar no 2.º | `archive-service` + snapshots imutáveis | Unit + integração: arquivo |
-| Privacidade | Não expor CC/NIF em logs/UI/PDFs | Masking centralizado + revisão manual | Unit: `security.ts` + QA manual |
+| Campanha | Criar campanha com horários, clubes, vagas e reservas | Interface administrativa + serviços com registo de auditoria | Integração: criação de campanha |
+| Vagas | Calcular a regra predefinida e permitir ajuste manual | `capacity-service` + evento auditado | Teste unitário: `capacity-service` |
+| Acesso público | Identificação com CC/NIF/número + código de acesso | Validação no servidor, mensagens neutras, limitação de tentativas | Integração: identificação pública |
+| Elegibilidade | Mostrar apenas clubes elegíveis e disponíveis | Serviço dedicado de elegibilidade | Teste unitário: `eligibility-service` |
+| Duplicação | Impedir duas escolhas válidas no mesmo horário | Guardas no serviço de submissão | Teste unitário: `enrollment-service` |
+| Concorrência | A última vaga nunca gera sobreocupação | Transação/bloqueio + erro controlado | Integração: submissões concorrentes |
+| Revisão | A administração revê listas antes da finalização | Ecrã/lista com estados coerentes | Teste ponta a ponta: revisão pós-prazo |
+| Distribuição | Alocar alunos sem colocação evitando repetições | `allocation-service` com razões auditáveis | Teste unitário + integração: distribuição |
+| PDFs | Gerar listas por clube e horário por aluno | Serviço de instantâneo + geração de documentos | Integração: finalização/PDFs |
+| Finalização | Bloquear conclusão com alunos por colocar sem exceção | Proteção de finalização | Teste ponta a ponta: finalização bloqueada/desbloqueada |
+| Arquivo | Reutilizar histórico no 1.º semestre e congelar no 2.º | `archive-service` + instantâneos imutáveis | Teste unitário + integração: arquivo |
+| Privacidade | Não expor CC/NIF em registos/interface/PDFs | Mascaramento centralizado + revisão manual | Teste unitário: `security.ts` + verificação manual |
 | Observabilidade | Expor métricas e eventos essenciais | Métricas, logs estruturados, alertas | Verificação manual + integração quando aplicável |
 
 ## Critérios de pronto por área
@@ -29,13 +29,13 @@ Ligar requisitos do PRD a evidência técnica, testes e revisão para reduzir la
 
 ### Portal público
 - A identificação falha sem revelar existência do aluno.
-- A disponibilidade é revalidada no backend.
-- A UI reflete corretamente clubes esgotados.
+- A disponibilidade é revalidada no servidor.
+- A interface reflete corretamente clubes esgotados.
 
 ### Distribuição e finalização
-- Preview e commit são claramente distintos.
+- Simulação e confirmação são claramente distintas.
 - Repetições inevitáveis têm razão persistida.
-- Finalização gera snapshot antes dos PDFs.
+- A finalização gera um instantâneo antes dos PDFs.
 
 ### Arquivo e histórico
 - O histórico do 1.º semestre alimenta o 2.º.
@@ -44,6 +44,6 @@ Ligar requisitos do PRD a evidência técnica, testes e revisão para reduzir la
 
 ## Checklist para revisão final
 - Cada requisito do PRD tem pelo menos uma peça de evidência técnica.
-- Cada risco crítico (PII, oversubscription, arquivo) tem cobertura explícita.
-- O cenário E2E principal percorre o ciclo completo da campanha.
+- Cada risco crítico (PII, sobreocupação, arquivo) tem cobertura explícita.
+- O cenário principal ponta a ponta percorre o ciclo completo da campanha.
 - A documentação operacional acompanha a implementação real e não apenas o plano.
