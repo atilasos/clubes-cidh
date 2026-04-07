@@ -22,7 +22,7 @@ export default async function CampaignLandingPage({ params }: CampaignLandingPag
       <div className="grid two">
         <InfoCard title="1. Identificar o aluno" eyebrow="Passo 1">
           <p>
-            Introduz um identificador do aluno (CC, NIF ou número de aluno) juntamente com o código de acesso
+            Introduza um identificador do aluno (CC, NIF ou número de aluno) juntamente com o código de acesso
             da campanha.
           </p>
           <div className="row">

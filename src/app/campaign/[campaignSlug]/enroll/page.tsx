@@ -124,7 +124,7 @@ export default async function CampaignEnrollPage({ params, searchParams }: Campa
                   <legend>
                     <strong>{option.slot.label}</strong>
                   </legend>
-                  <p className="status">Escolha no máximo um clube para este horário.</p>
+                  <p className="status">Escolha, no máximo, um clube para este horário.</p>
                   {option.clubs.map((club) => (
                     <label key={club.id} className="row">
                       <input type="radio" name={`choice:${option.slot.id}`} value={club.id} />

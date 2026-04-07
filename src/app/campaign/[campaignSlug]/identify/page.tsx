@@ -77,7 +77,7 @@ export default async function CampaignIdentifyPage({ params, searchParams }: Cam
           {message ? <p className="success">{message}</p> : null}
           {errorMessage ? <p className="error">{errorMessage}</p> : null}
           {!message && !errorMessage ? (
-            <p className="status">Depois da validação, o portal abre o ecrã de inscrição sem colocar identificadores ou códigos no URL.</p>
+            <p className="status">Depois da validação, o portal abre a página de inscrição sem colocar identificadores ou códigos no URL.</p>
           ) : null}
         </section>
       </div>

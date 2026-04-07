@@ -21,11 +21,11 @@ export default function HomePage() {
           <span className="badge">Portal público</span>
           <h2>Fluxo para pais e encarregados</h2>
           <p>
-            Cada campanha usa um link público com código de acesso. Os alunos só veem clubes elegíveis e
+            Cada campanha usa uma ligação pública com código de acesso. Os alunos só veem clubes elegíveis e
             disponíveis em cada horário.
           </p>
           <p className="status">
-            Depois de criar uma campanha, partilhe o link e os códigos gerados no painel administrativo.
+            Depois de criar uma campanha, partilhe a ligação e os códigos gerados no painel administrativo.
           </p>
         </section>
       </div>
