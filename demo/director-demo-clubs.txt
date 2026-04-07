@@ -1,0 +1,6 @@
+Robótica|Prof. Nuno|Terça 14:00|2
+Jornal Escolar|Prof. Marta|Terça 14:00|6
+Teatro|Prof. Sofia|Quinta 14:00|6
+Música|Prof. Rita|Quinta 14:00|2
+Xadrez|Prof. Luís|Sexta 10:00|4
+Ciência Viva|Prof. Inês|Sexta 10:00|4

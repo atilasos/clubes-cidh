@@ -1,0 +1,2 @@
+2026003|Terça 14:00|Robótica|Reserva pedagógica para mostrar prioridade manual
+2026008|Quinta 14:00|Música|Reserva manual para demonstrar exceções controladas
