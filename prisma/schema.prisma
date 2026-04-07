@@ -7,6 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CampaignStatus {
+  draft
+  open
+  closed
+  finalized
+  archived
+}
+
+enum PlacementSource {
+  reservation
+  submission
+  allocation
+  manual_exception
+}
+
+enum SubmissionStatus {
+  confirmed
+  rejected
+}
+
+enum DocumentType {
+  club_list
+  student_schedule
+}
+
+model AppState {
+  id        String   @id
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Student {
   id            String   @id @default(cuid())
   name          String
@@ -19,13 +51,146 @@ model Student {
 }
 
 model Campaign {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  semester        Int
+  schoolYear      String
+  status          CampaignStatus
+  startsAt        DateTime
+  endsAt          DateTime
+  defaultCapacity Int
+  createdAt       DateTime       @default(now())
+}
+
+model TimeSlot {
+  id               String   @id @default(cuid())
+  campaignId       String
+  label            String
+  startsAt         DateTime
+  endsAt           DateTime
+  eligibleGrades   Json
+  capacityDivisor  Int?
+  minimumPerClub   Int?
+}
+
+model Club {
+  id               String   @id @default(cuid())
+  campaignId       String
+  slotId           String
+  name             String
+  teacher          String
+  description      String?
+  capacityOverride Int?
+}
+
+model CampaignAccessCode {
   id         String   @id @default(cuid())
-  slug       String   @unique
-  title      String
-  semester   Int
-  schoolYear String
-  status     String
-  startsAt   DateTime
-  endsAt     DateTime
+  campaignId String
+  studentId  String
+  code       String
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@unique([campaignId, studentId])
+}
+
+model Reservation {
+  id         String   @id @default(cuid())
+  campaignId String
+  studentId  String
+  slotId     String
+  clubId     String
+  reason     String
   createdAt  DateTime @default(now())
+  createdBy  String
+
+  @@unique([campaignId, studentId, slotId])
+}
+
+model EnrollmentSubmission {
+  id         String           @id @default(cuid())
+  campaignId String
+  studentId  String
+  submittedAt DateTime
+  status     SubmissionStatus
+  choices    Json
+
+  @@unique([campaignId, studentId])
+}
+
+model FinalPlacement {
+  id         String          @id @default(cuid())
+  campaignId String
+  studentId  String
+  slotId     String
+  clubId     String
+  source     PlacementSource
+  reason     String
+  createdAt  DateTime @default(now())
+
+  @@unique([campaignId, studentId, slotId])
+}
+
+model CampaignException {
+  id         String   @id @default(cuid())
+  campaignId String
+  studentId  String
+  slotId     String
+  reason     String
+  createdAt  DateTime @default(now())
+
+  @@unique([campaignId, studentId, slotId])
+}
+
+model StudentClubHistory {
+  id         String   @id @default(cuid())
+  studentId  String
+  slotId     String
+  clubId     String
+  clubName   String
+  schoolYear String
+  semester   Int
+  createdAt  DateTime @default(now())
+}
+
+model GeneratedDocument {
+  id             String       @id @default(cuid())
+  campaignId     String
+  documentType   DocumentType
+  subjectId      String
+  fileName       String
+  createdAt      DateTime @default(now())
+  contentsBase64 String
+}
+
+model CampaignAccessExport {
+  id         String   @id @default(cuid())
+  campaignId String
+  createdAt  DateTime @default(now())
+  rows       Json
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String
+  actor      String
+  createdAt  DateTime @default(now())
+  details    Json
+}
+
+model MetricSnapshot {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  value      Int
+  updatedAt  DateTime @updatedAt
+}
+
+model StudentImportReport {
+  id           String   @id @default(cuid())
+  importedCount Int
+  rejected     Json
+  createdAt    DateTime @default(now())
 }
