@@ -127,3 +127,7 @@ export function codesMatch(actualCode: string, providedCode: string) {
   const right = digest(providedCode.trim().toUpperCase());
   return left.length === right.length && timingSafeEqual(left, right);
 }
+
+export function requestRemoteKey(headers: Headers) {
+  return headers.get("x-forwarded-for") ?? headers.get("x-real-ip") ?? headers.get("user-agent") ?? "public";
+}

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requestRemoteKey } from "@/server/lib/security";
 import { identifyStudentForCampaign } from "@/server/services/enrollment-service";
 
 type RouteContext = {
@@ -7,16 +8,15 @@ type RouteContext = {
   }>;
 };
 
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(request: NextRequest, context: RouteContext) {
   const { campaignSlug } = await context.params;
   const contentType = request.headers.get("content-type") ?? "";
   const body = contentType.includes("application/json")
-    ? ((await request.json()) as { identifier: string; accessCode: string; remoteKey?: string })
+    ? ((await request.json()) as { identifier: string; accessCode: string })
     : (() => {
         return request.formData().then((formData) => ({
           identifier: String(formData.get("identifier") ?? ""),
           accessCode: String(formData.get("accessCode") ?? ""),
-          remoteKey: String(formData.get("remoteKey") ?? "public"),
         }));
       })();
   const resolvedBody = await body;
@@ -26,7 +26,7 @@ export async function POST(request: Request, context: RouteContext) {
       campaignSlug,
       resolvedBody.identifier,
       resolvedBody.accessCode,
-      resolvedBody.remoteKey ?? "public",
+      requestRemoteKey(request.headers),
     );
     return NextResponse.json(result);
   } catch (error) {
