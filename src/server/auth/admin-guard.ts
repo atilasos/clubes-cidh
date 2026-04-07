@@ -28,7 +28,7 @@ export function requireAdminApi(request: NextRequest) {
 
 export async function createAdminSession(password: string) {
   if (!isValidAdminPassword(password)) {
-    throw new Error("Password administrativa inválida.");
+    throw new Error("Palavra-passe administrativa inválida.");
   }
 
   const store = await cookies();

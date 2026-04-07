@@ -141,8 +141,8 @@ export function allocateUnplacedStudents(input: {
         slotId: chosen.slotId,
         repeatedClub,
         reason: repeatedClub
-          ? "No alternative remained in this slot, so an inevitable repeat was recorded."
-          : "Allocated to an eligible club with remaining capacity in this slot.",
+          ? "Não restou alternativa neste horário, pelo que foi registada uma repetição inevitável."
+          : "O aluno foi colocado num clube elegível com vagas disponíveis neste horário.",
       });
     }
   }

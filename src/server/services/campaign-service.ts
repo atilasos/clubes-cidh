@@ -125,7 +125,7 @@ export function createCampaign(
   invariant(store.students.length > 0, "Importe alunos antes de criar uma campanha.");
 
   const slug = slugify(input.slug ?? input.title);
-  invariant(!store.campaigns.some((campaign) => campaign.slug === slug), "Slug de campanha já existe.");
+  invariant(!store.campaigns.some((campaign) => campaign.slug === slug), "O identificador público da campanha já existe.");
 
   const campaign: Campaign = {
     id: createId(),
@@ -153,7 +153,7 @@ export function createCampaign(
 
   const clubs: Club[] = input.clubs.map((club) => {
     const slot = slots.find((entry) => entry.label === club.slotLabel);
-    invariant(slot, `Slot não encontrado para o clube ${club.name}.`);
+    invariant(slot, `Horário não encontrado para o clube ${club.name}.`);
     return {
       id: createId(),
       campaignId: campaign.id,
@@ -188,7 +188,7 @@ export function createCampaign(
       club,
       entry.slotLabel
         ? `Clube ${entry.clubName} não encontrado no horário ${entry.slotLabel}.`
-        : `Reserva ambígua para ${entry.clubName}; indique também o horário/slot.`,
+        : `Reserva ambígua para ${entry.clubName}; indique também o horário.`,
     );
     const reservation: Reservation = {
       id: createId(),

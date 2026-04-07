@@ -71,7 +71,7 @@ export async function generateCampaignDocuments(store: DataStore, campaignId: st
       .map((placement) => {
         const student = students.find((entry) => entry.id === placement.studentId);
         return student
-          ? `${student.name} — ${student.grade} / ${student.className}`
+          ? `${student.name} — ${student.grade}.º ano / ${student.className}`
           : `Aluno desconhecido (${placement.studentId})`;
       })
       .sort((left, right) => left.localeCompare(right));
@@ -119,7 +119,7 @@ export async function generateCampaignDocuments(store: DataStore, campaignId: st
     const lines: TextLine[] = [
       { text: `Campanha: ${campaign.title}` },
       { text: `Aluno: ${student.name}` },
-      { text: `Turma: ${student.grade} / ${student.className}` },
+      { text: `Turma: ${student.grade}.º ano / ${student.className}` },
       { text: "" },
       { text: "Horário individual", bold: true },
     ];
