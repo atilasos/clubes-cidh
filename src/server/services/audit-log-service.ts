@@ -20,7 +20,6 @@ export function recordAuditLog(
     createdAt: nowIso(),
     details: input.details ?? {},
   });
-  store.auditLogs = store.auditLogs.slice(0, 200);
 }
 
 export function incrementMetric(store: DataStore, metric: string, amount = 1) {

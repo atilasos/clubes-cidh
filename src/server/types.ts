@@ -32,6 +32,8 @@ export interface TimeSlot {
   startsAt: string;
   endsAt: string;
   eligibleGrades: string[];
+  capacityDivisor?: number | null;
+  minimumPerClub?: number | null;
 }
 
 export interface Club {
@@ -150,6 +152,12 @@ export interface StudentImportReject {
   record: Record<string, string>;
 }
 
+export interface StudentImportReport {
+  importedCount: number;
+  rejected: StudentImportReject[];
+  createdAt: string;
+}
+
 export interface DataStore {
   students: Student[];
   campaigns: Campaign[];
@@ -165,6 +173,7 @@ export interface DataStore {
   accessExports: CampaignAccessExport[];
   auditLogs: AuditLog[];
   metrics: Record<string, number>;
+  lastStudentImportReport: StudentImportReport | null;
 }
 
 export interface EligibleClubOption {
@@ -202,4 +211,5 @@ export interface DashboardData {
   }>;
   recentAuditLogs: AuditLog[];
   metrics: Record<string, number>;
+  lastStudentImportReport: StudentImportReport | null;
 }
