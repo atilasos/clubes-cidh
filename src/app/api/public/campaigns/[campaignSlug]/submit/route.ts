@@ -20,7 +20,14 @@ export async function POST(request: Request, context: RouteContext) {
         request.formData().then((formData) => ({
           studentId: String(formData.get("studentId") ?? ""),
           accessCode: String(formData.get("accessCode") ?? ""),
-          choices: JSON.parse(String(formData.get("choices") ?? "[]")) as Array<{ slotId: string; clubId: string }>,
+          choices: formData.get("choices")
+            ? (JSON.parse(String(formData.get("choices") ?? "[]")) as Array<{ slotId: string; clubId: string }>)
+            : Array.from(formData.entries())
+                .filter(([key, value]) => key.startsWith("choice:") && typeof value === "string" && value.length > 0)
+                .map(([key, value]) => ({
+                  slotId: key.replace(/^choice:/, ""),
+                  clubId: String(value),
+                })),
         })))();
   const resolvedBody = await body;
 

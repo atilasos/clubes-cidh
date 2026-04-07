@@ -11,13 +11,12 @@ type CampaignLandingPageProps = {
 export default async function CampaignLandingPage({ params }: CampaignLandingPageProps) {
   const { campaignSlug } = await params;
   const identifyHref = `/campaign/${campaignSlug}/identify` as Route;
-  const enrollHref = `/campaign/${campaignSlug}/enroll` as Route;
 
   return (
     <PageShell
       badge="Portal público"
       title={`Campanha ${campaignSlug}`}
-      description="Entrada pública para identificação do aluno e submissão das escolhas dos clubes elegíveis."
+      description="Fluxo público para identificar o aluno, ver apenas os clubes elegíveis por horário e confirmar a inscrição com validação no servidor."
       breadcrumbs={[{ label: "Início", href: "/" }, { label: "Campanha" }, { label: campaignSlug }]}
     >
       <div className="grid two">
@@ -32,16 +31,16 @@ export default async function CampaignLandingPage({ params }: CampaignLandingPag
             </Link>
           </div>
         </InfoCard>
-        <InfoCard title="2. Submeter escolhas" eyebrow="Passo 2">
+        <InfoCard title="2. Confirmar escolhas elegíveis" eyebrow="Passo 2">
           <p>
-            Depois de validar o aluno, submete as escolhas num máximo de um clube por horário, sempre sujeito a
-            disponibilidade em tempo real.
+            Depois da identificação, o portal mostra apenas os horários e clubes ainda válidos para esse aluno.
+            A confirmação volta a validar disponibilidade e conflitos no servidor.
           </p>
-          <div className="row">
-            <Link href={enrollHref}>
-              <button>Abrir formulário de submissão</button>
-            </Link>
-          </div>
+          <ul>
+            <li>Um clube por horário.</li>
+            <li>Clubes esgotados deixam de estar disponíveis.</li>
+            <li>As escolhas ficam sujeitas à ordem de chegada.</li>
+          </ul>
         </InfoCard>
       </div>
     </PageShell>
