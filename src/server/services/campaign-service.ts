@@ -3,10 +3,12 @@ import { codesMatch, generateAccessCode, maskSensitiveValue, normalizeIdentifier
 import { createId, invariant, nowIso, slugify } from "@/server/lib/utils";
 import { recordAuditLog } from "@/server/services/audit-log-service";
 import { getRemainingCapacity } from "@/server/services/capacity-service";
+import { getEligibleTimeSlotsForStudent } from "@/server/services/eligibility-service";
 import {
   Campaign,
   CampaignAccessCode,
   CampaignAccessExport,
+  CampaignException,
   Club,
   DataStore,
   FinalPlacement,
@@ -19,6 +21,8 @@ const slotSchema = z.object({
   startsAt: z.string().min(1),
   endsAt: z.string().min(1),
   eligibleGrades: z.array(z.string()).default([]),
+  capacityDivisor: z.number().int().positive().nullable().optional(),
+  minimumPerClub: z.number().int().positive().nullable().optional(),
 });
 
 const clubSchema = z.object({
@@ -31,6 +35,7 @@ const clubSchema = z.object({
 
 const reservationSchema = z.object({
   studentNumber: z.string().min(1),
+  slotLabel: z.string().min(1).optional(),
   clubName: z.string().min(1),
   reason: z.string().min(3),
 });
@@ -51,12 +56,49 @@ const campaignInputSchema = z.object({
 
 export type CampaignCreateInput = z.infer<typeof campaignInputSchema>;
 
+export function resolveCampaignStatus(campaign: Campaign): Campaign["status"] {
+  if (campaign.status === "open" && new Date(campaign.endsAt).getTime() <= Date.now()) {
+    return "closed";
+  }
+
+  return campaign.status;
+}
+
+function withResolvedCampaignStatus(campaign: Campaign): Campaign {
+  return {
+    ...campaign,
+    status: resolveCampaignStatus(campaign),
+  };
+}
+
+export function syncCampaignStatus(store: DataStore, campaignId: string, actor = "system") {
+  const campaign = store.campaigns.find((entry) => entry.id === campaignId);
+  invariant(campaign, "Campanha não encontrada.");
+
+  const resolvedStatus = resolveCampaignStatus(campaign);
+  if (campaign.status !== resolvedStatus) {
+    campaign.status = resolvedStatus;
+    recordAuditLog(store, {
+      entityType: "campaign",
+      entityId: campaign.id,
+      action: "campaign_closed",
+      actor,
+      details: {
+        closedAt: nowIso(),
+        reason: "deadline_elapsed",
+      },
+    });
+  }
+
+  return campaign;
+}
+
 function createAccessCodes(campaign: Campaign, studentIds: string[]): CampaignAccessCode[] {
   return studentIds.map((studentId) => ({
     id: createId(),
     campaignId: campaign.id,
     studentId,
-    code: generateAccessCode(),
+    code: generateAccessCode().slice(0, 6),
     expiresAt: campaign.endsAt,
   }));
 }
@@ -105,6 +147,8 @@ export function createCampaign(
     startsAt: slot.startsAt,
     endsAt: slot.endsAt,
     eligibleGrades: slot.eligibleGrades,
+    capacityDivisor: slot.capacityDivisor ?? null,
+    minimumPerClub: slot.minimumPerClub ?? null,
   }));
 
   const clubs: Club[] = input.clubs.map((club) => {
@@ -128,8 +172,24 @@ export function createCampaign(
   for (const entry of input.reservations) {
     const student = store.students.find((candidate) => candidate.studentNumber === normalizeIdentifier(entry.studentNumber));
     invariant(student, `Aluno ${entry.studentNumber} não encontrado para reserva.`);
-    const club = clubs.find((candidate) => candidate.name === entry.clubName);
-    invariant(club, `Clube ${entry.clubName} não encontrado para reserva.`);
+    const matchingClubs = clubs.filter((candidate) => candidate.name === entry.clubName);
+    invariant(matchingClubs.length > 0, `Clube ${entry.clubName} não encontrado para reserva.`);
+
+    const club = entry.slotLabel
+      ? matchingClubs.find((candidate) => {
+          const slot = slots.find((slotEntry) => slotEntry.id === candidate.slotId);
+          return slot?.label === entry.slotLabel;
+        })
+      : matchingClubs.length === 1
+        ? matchingClubs[0]
+        : null;
+
+    invariant(
+      club,
+      entry.slotLabel
+        ? `Clube ${entry.clubName} não encontrado no horário ${entry.slotLabel}.`
+        : `Reserva ambígua para ${entry.clubName}; indique também o horário/slot.`,
+    );
     const reservation: Reservation = {
       id: createId(),
       campaignId: campaign.id,
@@ -142,6 +202,18 @@ export function createCampaign(
     };
     reservations.push(reservation);
     reservationPlacements.push(createReservationPlacement(reservation));
+    recordAuditLog(store, {
+      entityType: "reservation",
+      entityId: reservation.id,
+      action: "reservation_created",
+      actor,
+      details: {
+        campaignId: campaign.id,
+        studentId: student.id,
+        slotId: club.slotId,
+        clubId: club.id,
+      },
+    });
     const syntheticStore: DataStore = {
       ...store,
       campaigns: [...store.campaigns, campaign],
@@ -170,15 +242,30 @@ export function createCampaign(
     },
   });
 
+  const clubsWithOverride = clubs.filter((club) => club.capacityOverride != null);
+  if (clubsWithOverride.length > 0) {
+    recordAuditLog(store, {
+      entityType: "campaign",
+      entityId: campaign.id,
+      action: "capacity_override_configured",
+      actor,
+      details: {
+        clubs: clubsWithOverride.map((club) => ({ clubId: club.id, capacityOverride: club.capacityOverride })),
+      },
+    });
+  }
+
   return campaign;
 }
 
 export function getCampaignBySlug(store: DataStore, campaignSlug: string) {
-  return store.campaigns.find((campaign) => campaign.slug === campaignSlug);
+  const campaign = store.campaigns.find((entry) => entry.slug === campaignSlug);
+  return campaign ? withResolvedCampaignStatus(campaign) : undefined;
 }
 
 export function getCampaignWithRelations(store: DataStore, campaignId: string) {
-  const campaign = store.campaigns.find((entry) => entry.id === campaignId);
+  const rawCampaign = store.campaigns.find((entry) => entry.id === campaignId);
+  const campaign = rawCampaign ? withResolvedCampaignStatus(rawCampaign) : undefined;
   invariant(campaign, "Campanha não encontrada.");
   return {
     campaign,
@@ -189,14 +276,105 @@ export function getCampaignWithRelations(store: DataStore, campaignId: string) {
   };
 }
 
+export function getPendingPlacementTargets(store: DataStore, campaign: Campaign) {
+  const placementKeys = new Set(
+    store.placements
+      .filter((placement) => placement.campaignId === campaign.id)
+      .map((placement) => `${placement.studentId}:${placement.slotId}`),
+  );
+  const exceptionKeys = new Set(
+    store.exceptions
+      .filter((exception) => exception.campaignId === campaign.id)
+      .map((exception) => `${exception.studentId}:${exception.slotId}`),
+  );
+
+  return store.students.flatMap((student) =>
+    getEligibleTimeSlotsForStudent(store, campaign, student)
+      .filter(
+        (slot) => !placementKeys.has(`${student.id}:${slot.id}`) && !exceptionKeys.has(`${student.id}:${slot.id}`),
+      )
+      .map((slot) => ({
+        studentId: student.id,
+        studentName: student.name,
+        grade: student.grade,
+        className: student.className,
+        slotId: slot.id,
+        slotLabel: slot.label,
+      })),
+  );
+}
+
+export function getCampaignDetailView(store: DataStore, campaignSlug: string) {
+  const campaign = getCampaignBySlug(store, campaignSlug);
+  invariant(campaign, "Campanha não encontrada.");
+
+  const slots = store.timeSlots.filter((slot) => slot.campaignId === campaign.id);
+  const clubs = store.clubs.filter((club) => club.campaignId === campaign.id);
+  const reservations = store.reservations
+    .filter((reservation) => reservation.campaignId === campaign.id)
+    .map((reservation) => ({
+      ...reservation,
+      student: store.students.find((student) => student.id === reservation.studentId),
+      club: clubs.find((club) => club.id === reservation.clubId),
+      slot: slots.find((slot) => slot.id === reservation.slotId),
+    }));
+  const placements = store.placements
+    .filter((placement) => placement.campaignId === campaign.id)
+    .map((placement) => ({
+      ...placement,
+      student: store.students.find((student) => student.id === placement.studentId),
+      club: clubs.find((club) => club.id === placement.clubId),
+      slot: slots.find((slot) => slot.id === placement.slotId),
+    }));
+  const exceptions = store.exceptions
+    .filter((exception) => exception.campaignId === campaign.id)
+    .map((exception) => ({
+      ...exception,
+      student: store.students.find((student) => student.id === exception.studentId),
+      slot: slots.find((slot) => slot.id === exception.slotId),
+    }));
+  const documents = store.documents.filter((document) => document.campaignId === campaign.id);
+  const exports = store.accessExports.filter((entry) => entry.campaignId === campaign.id);
+
+  return {
+    campaign,
+    slots: slots.map((slot) => ({
+      ...slot,
+      clubs: clubs
+        .filter((club) => club.slotId === slot.id)
+        .map((club) => ({
+          ...club,
+          remainingCapacity: getRemainingCapacity(store, club.id),
+          placements: placements.filter((placement) => placement.clubId === club.id),
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    })),
+    reservations,
+    placements,
+    exceptions,
+    documents,
+    accessExports: exports,
+    pendingTargets: getPendingPlacementTargets(store, campaign),
+    auditLogs: store.auditLogs.filter(
+      (entry) =>
+        entry.entityId === campaign.id ||
+        entry.details.campaignId === campaign.id,
+    ),
+  };
+}
+
 export function exportCampaignAccessPackage(
   store: DataStore,
   campaignId: string,
   baseUrl: string,
   actor = "admin",
 ): CampaignAccessExport {
-  const campaign = store.campaigns.find((entry) => entry.id === campaignId);
+  const campaign = syncCampaignStatus(store, campaignId, actor);
   invariant(campaign, "Campanha não encontrada.");
+  invariant(
+    campaign.status !== "finalized" && campaign.status !== "archived",
+    "Não é possível gerar novos pacotes de acesso depois da finalização da campanha.",
+  );
 
   const rows = store.accessCodes
     .filter((entry) => entry.campaignId === campaignId && !entry.revokedAt)
@@ -244,4 +422,75 @@ export function validateCampaignAccessCode(
   invariant(new Date(record.expiresAt).getTime() >= Date.now(), "Código de acesso expirado.");
   invariant(codesMatch(record.code, code), "Código de acesso inválido.");
   return record;
+}
+
+export function recordCampaignException(
+  store: DataStore,
+  input: {
+    campaignId: string;
+    studentId: string;
+    slotId: string;
+    reason: string;
+  },
+  actor = "admin",
+): CampaignException {
+  const campaign = syncCampaignStatus(store, input.campaignId);
+  invariant(campaign.status === "closed", "Só é possível registar exceções depois de fechar a campanha.");
+
+  const student = store.students.find((entry) => entry.id === input.studentId);
+  invariant(student, "Aluno não encontrado.");
+
+  const slot = store.timeSlots.find((entry) => entry.id === input.slotId && entry.campaignId === input.campaignId);
+  invariant(slot, "Horário não encontrado para a campanha.");
+
+  invariant(
+    !store.placements.some(
+      (placement) =>
+        placement.campaignId === input.campaignId &&
+        placement.studentId === input.studentId &&
+        placement.slotId === input.slotId,
+    ),
+    "Não é possível marcar exceção para um horário já colocado.",
+  );
+
+  const existing = store.exceptions.find(
+    (exception) =>
+      exception.campaignId === input.campaignId &&
+      exception.studentId === input.studentId &&
+      exception.slotId === input.slotId,
+  );
+
+  const nextException: CampaignException = existing
+    ? {
+        ...existing,
+        reason: input.reason,
+      }
+    : {
+        id: createId(),
+        campaignId: input.campaignId,
+        studentId: input.studentId,
+        slotId: input.slotId,
+        reason: input.reason,
+        createdAt: nowIso(),
+      };
+
+  if (existing) {
+    Object.assign(existing, nextException);
+  } else {
+    store.exceptions.push(nextException);
+  }
+
+  recordAuditLog(store, {
+    entityType: "campaign_exception",
+    entityId: nextException.id,
+    action: existing ? "placement_exception_updated" : "placement_exception_recorded",
+    actor,
+    details: {
+      campaignId: input.campaignId,
+      studentId: input.studentId,
+      slotId: input.slotId,
+    },
+  });
+
+  return nextException;
 }

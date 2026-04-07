@@ -2,7 +2,7 @@ import { createId, nowIso } from "@/server/lib/utils";
 import { recordAuditLog } from "@/server/services/audit-log-service";
 import { DataStore, Student, StudentImportReject } from "@/server/types";
 
-const REQUIRED_HEADERS = ["name", "grade", "className", "studentNumber"] as const;
+const REQUIRED_HEADERS = ["name", "grade", "className", "cc", "nif", "studentNumber"] as const;
 
 function parseCsv(csv: string) {
   const lines = csv.split(/\r?\n/).filter((line) => line.trim().length > 0);
@@ -38,6 +38,8 @@ export function importStudents(
   const imported: Student[] = [];
   const rejected: StudentImportReject[] = [];
   const seenStudentNumbers = new Set<string>();
+  const seenCc = new Set<string>();
+  const seenNif = new Set<string>();
 
   rows.forEach((row, index) => {
     const normalized = normalizeStudentRecord(row);
@@ -50,7 +52,27 @@ export function importStudents(
       rejected.push({ rowNumber: index + 2, reason: "Número de aluno duplicado no ficheiro", record: row });
       return;
     }
+    if (normalized.cc && seenCc.has(normalized.cc)) {
+      rejected.push({ rowNumber: index + 2, reason: "CC duplicado no ficheiro", record: row });
+      return;
+    }
+    if (normalized.nif && seenNif.has(normalized.nif)) {
+      rejected.push({ rowNumber: index + 2, reason: "NIF duplicado no ficheiro", record: row });
+      return;
+    }
+
+    if (store.students.some((student) => student.cc === normalized.cc)) {
+      rejected.push({ rowNumber: index + 2, reason: "CC duplicado na base atual", record: row });
+      return;
+    }
+    if (store.students.some((student) => student.nif === normalized.nif)) {
+      rejected.push({ rowNumber: index + 2, reason: "NIF duplicado na base atual", record: row });
+      return;
+    }
+
     seenStudentNumbers.add(normalized.studentNumber!);
+    if (normalized.cc) seenCc.add(normalized.cc);
+    if (normalized.nif) seenNif.add(normalized.nif);
 
     const existing = store.students.find((student) => student.studentNumber === normalized.studentNumber);
     const nextStudent: Student = existing
@@ -84,6 +106,12 @@ export function importStudents(
       rejected: rejected.length,
     },
   });
+
+  store.lastStudentImportReport = {
+    importedCount: imported.length,
+    rejected,
+    createdAt: nowIso(),
+  };
 
   return { imported, rejected };
 }
