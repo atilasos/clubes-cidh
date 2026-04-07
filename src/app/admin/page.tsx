@@ -61,6 +61,37 @@ function parseReservations(value: string) {
   });
 }
 
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-PT", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function statusLabel(status: string) {
+  return {
+    draft: "rascunho",
+    open: "aberta",
+    closed: "fechada",
+    finalized: "finalizada",
+    archived: "arquivada",
+  }[status] ?? status;
+}
+
+function auditActionLabel(action: string) {
+  return {
+    students_imported: "alunos importados",
+    campaign_opened: "campanha aberta",
+    campaign_created: "campanha criada",
+    campaign_closed: "campanha fechada",
+    campaign_archived: "campanha arquivada",
+    access_export_generated: "pacote de acesso gerado",
+    reservation_created: "reserva criada",
+    placement_committed: "colocação confirmada",
+    allocation_committed: "distribuição confirmada",
+    capacity_override_configured: "ajuste manual de vagas configurado",
+    placement_exception_recorded: "exceção de colocação registada",
+    placement_exception_updated: "exceção de colocação atualizada",
+  }[action] ?? action;
+}
+
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
   const resolvedSearchParams = await searchParams;
   const authenticated = await isAdminAuthenticated();
@@ -72,7 +103,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
       await createAdminSession(String(formData.get("password") ?? ""));
       redirect("/admin?message=Autenticação%20administrativa%20ativa.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Não foi possível autenticar o administrador.";
+      const message = error instanceof Error ? error.message : "Não foi possível autenticar a administração.";
       redirect(`/admin?error=${encodeURIComponent(message)}`);
     }
   }
@@ -144,10 +175,10 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   if (!authenticated) {
     return (
       <PageShell
-        badge="Admin"
+        badge="Administração"
         title="Autenticação administrativa"
-        description="Introduza a password administrativa para aceder à preparação de campanhas, importação de alunos e ações de fecho."
-        breadcrumbs={[{ label: "Início", href: "/" }, { label: "Admin" }]}
+        description="Introduza a palavra-passe administrativa para aceder à preparação de campanhas, à importação de alunos e às ações de fecho."
+        breadcrumbs={[{ label: "Início", href: "/" }, { label: "Administração" }]}
       >
         <div className="grid two">
           <InfoCard title="Entrar" eyebrow="Acesso protegido">
@@ -155,7 +186,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
             {resolvedSearchParams.error ? <p className="error">{resolvedSearchParams.error}</p> : null}
             <form className="stack" action={loginAction}>
               <label className="stack">
-                <span>Password administrativa</span>
+                <span>Palavra-passe administrativa</span>
                 <input type="password" name="password" required />
               </label>
               <button type="submit">Entrar no painel</button>
@@ -181,10 +212,10 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
 
   return (
     <PageShell
-      badge="Admin"
+      badge="Administração"
       title="Painel administrativo"
       description="Vista operacional do estado atual: alunos importados, campanhas existentes, métricas de risco e pontos de entrada para rever, distribuir e finalizar."
-      breadcrumbs={[{ label: "Início", href: "/" }, { label: "Admin" }]}
+      breadcrumbs={[{ label: "Início", href: "/" }, { label: "Administração" }]}
     >
       {resolvedSearchParams.message ? <p className="success">{resolvedSearchParams.message}</p> : null}
       {resolvedSearchParams.error ? <p className="error">{resolvedSearchParams.error}</p> : null}
@@ -265,8 +296,8 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
                 <input name="title" required />
               </label>
               <label className="stack">
-                <span>Slug opcional</span>
-                <input name="slug" />
+              <span>Identificador público opcional</span>
+              <input name="slug" />
               </label>
               <label className="stack">
                 <span>Semestre</span>
@@ -298,7 +329,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
             </div>
 
             <label className="stack">
-              <span>Horários (um por linha: label|startsAt|endsAt|grade1,grade2|divisor opcional|minimo opcional)</span>
+              <span>Horários (uma linha por horário: rótulo|início|fim|ano1,ano2|divisor opcional|mínimo opcional)</span>
               <textarea
                 name="slots"
                 defaultValue={"Quinta 14:00|2026-04-11T14:00:00.000Z|2026-04-11T15:00:00.000Z|5,6|2|1"}
@@ -307,7 +338,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
             </label>
 
             <label className="stack">
-              <span>Clubes (um por linha: nome|professor|label do horário|override opcional)</span>
+              <span>Clubes (uma linha por clube: nome|professor|rótulo do horário|ajuste manual opcional)</span>
               <textarea
                 name="clubs"
                 defaultValue={"Robótica|Prof. Nuno|Quinta 14:00|1\nCiência Viva|Prof. Marta|Quinta 14:00|1"}
@@ -336,22 +367,22 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
                   <Link href={`/admin/campaigns/${campaign.slug}`}>
                     {campaign.title}
                   </Link>{" "}
-                  <span className="status">· {campaign.status}</span>
+                  <span className="status">· {statusLabel(campaign.status)}</span>
                 </li>
               ))}
             </ul>
           )}
         </InfoCard>
-        <InfoCard title="Audit log recente" eyebrow="Rastreio">
+        <InfoCard title="Registo de auditoria recente" eyebrow="Rastreio">
           {dashboard.recentAuditLogs.length === 0 ? (
             <p className="status">Sem eventos recentes.</p>
           ) : (
             <ul>
               {dashboard.recentAuditLogs.slice(0, 5).map((entry) => (
                 <li key={entry.id}>
-                  <strong>{entry.action}</strong>
+                  <strong>{auditActionLabel(entry.action)}</strong>
                   <br />
-                  <span className="status">{entry.actor} · {new Date(entry.createdAt).toLocaleString("en-US")}</span>
+                  <span className="status">{entry.actor} · {formatDateTime(entry.createdAt)}</span>
                 </li>
               ))}
             </ul>
