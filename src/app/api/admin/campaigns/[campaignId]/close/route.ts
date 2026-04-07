@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/server/auth/admin-guard";
-import { exportCampaignAccessPackage } from "@/server/services/campaign-service";
+import { closeCampaign, openCampaign } from "@/server/services/campaign-operations-service";
 import { withStore } from "@/server/store/db";
 
 type RouteContext = {
@@ -15,16 +15,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { campaignId } = await context.params;
-    const body = (await request.json().catch(() => ({}))) as { baseUrl?: string; actor?: string };
-
-    const exportPackage = await withStore((store) =>
-      exportCampaignAccessPackage(store, campaignId, body.baseUrl ?? "http://localhost:3000", body.actor),
+    const body = (await request.json().catch(() => ({}))) as { actor?: string; action?: "open" | "close" };
+    const campaign = await withStore((store) =>
+      body.action === "open" ? openCampaign(store, campaignId, body.actor) : closeCampaign(store, campaignId, body.actor),
     );
-
-    return NextResponse.json(exportPackage);
+    return NextResponse.json(campaign);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Não foi possível exportar os acessos." },
+      { error: error instanceof Error ? error.message : "Não foi possível fechar a campanha." },
       { status: 400 },
     );
   }
