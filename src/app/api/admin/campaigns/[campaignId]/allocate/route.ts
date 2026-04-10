@@ -15,10 +15,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { campaignId } = await context.params;
-    const body = (await request.json().catch(() => ({}))) as { commit?: boolean; actor?: string };
+    const body = (await request.json().catch(() => ({}))) as { commit?: boolean };
 
     const result = await withStore((store) =>
-      body.commit ? commitCampaignAllocation(store, campaignId, body.actor) : previewCampaignAllocation(store, campaignId),
+      body.commit ? commitCampaignAllocation(store, campaignId, "admin") : previewCampaignAllocation(store, campaignId),
     );
 
     return NextResponse.json(result);

@@ -15,9 +15,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { campaignId } = await context.params;
-    const body = (await request.json().catch(() => ({}))) as { actor?: string };
+    await request.json().catch(() => ({}));
 
-    const result = await withStore((store) => finalizeCampaign(store, campaignId, body.actor));
+    const result = await withStore((store) => finalizeCampaign(store, campaignId, "admin"));
 
     return NextResponse.json(result);
   } catch (error) {

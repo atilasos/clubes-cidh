@@ -15,9 +15,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { campaignId } = await context.params;
-    const body = (await request.json().catch(() => ({}))) as { actor?: string; action?: "open" | "close" };
+    const body = (await request.json().catch(() => ({}))) as { action?: "open" | "close" };
     const campaign = await withStore((store) =>
-      body.action === "open" ? openCampaign(store, campaignId, body.actor) : closeCampaign(store, campaignId, body.actor),
+      body.action === "open" ? openCampaign(store, campaignId, "admin") : closeCampaign(store, campaignId, "admin"),
     );
     return NextResponse.json(campaign);
   } catch (error) {

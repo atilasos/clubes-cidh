@@ -17,10 +17,9 @@ export async function POST(request: NextRequest) {
             csv:
               (uploadedFile instanceof File ? await uploadedFile.text() : "") ||
               String(formData.get("csv") ?? ""),
-            actor: String(formData.get("actor") ?? "admin"),
           };
         });
-    const result = await withStore((store) => importStudents(store, body));
+    const result = await withStore((store) => importStudents(store, { ...body, actor: "admin" }));
 
     return NextResponse.json(result);
   } catch (error) {

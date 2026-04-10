@@ -19,7 +19,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       studentId: string;
       slotId: string;
       reason: string;
-      actor?: string;
     };
 
     const exception = await withStore((store) =>
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           slotId: body.slotId,
           reason: body.reason,
         },
-        body.actor,
+        "admin",
       ),
     );
 
