@@ -54,7 +54,106 @@ const campaignInputSchema = z.object({
   reservations: z.array(reservationSchema).default([]),
 });
 
+const draftCampaignBasicsSchema = z.object({
+  campaignId: z.string().min(1),
+  title: z.string().min(3),
+  schoolYear: z.string().min(4),
+  startsAt: z.string().min(1),
+  endsAt: z.string().min(1),
+  defaultCapacity: z.number().int().positive(),
+});
+
+const draftSlotUpdateSchema = z.object({
+  campaignId: z.string().min(1),
+  slotId: z.string().min(1),
+  eligibleGrades: z.array(z.string().trim()).default([]),
+  capacityDivisor: z.number().int().positive().nullable().optional(),
+  minimumPerClub: z.number().int().positive().nullable().optional(),
+});
+
+const draftClubUpdateSchema = z.object({
+  campaignId: z.string().min(1),
+  clubId: z.string().min(1),
+  teacher: z.string().min(1),
+  description: z.string().optional(),
+  capacityOverride: z.number().int().positive().nullable().optional(),
+});
+
+const draftReservationCreateSchema = z.object({
+  campaignId: z.string().min(1),
+  studentId: z.string().min(1),
+  clubId: z.string().min(1),
+  reason: z.string().min(3),
+});
+
+const draftReservationRemoveSchema = z.object({
+  campaignId: z.string().min(1),
+  reservationId: z.string().min(1),
+});
+
 export type CampaignCreateInput = z.infer<typeof campaignInputSchema>;
+export type DraftCampaignBasicsInput = z.infer<typeof draftCampaignBasicsSchema>;
+export type DraftSlotUpdateInput = z.infer<typeof draftSlotUpdateSchema>;
+export type DraftClubUpdateInput = z.infer<typeof draftClubUpdateSchema>;
+export type DraftReservationCreateInput = z.infer<typeof draftReservationCreateSchema>;
+export type DraftReservationRemoveInput = z.infer<typeof draftReservationRemoveSchema>;
+
+function validateCampaignWindow(startsAt: string, endsAt: string) {
+  invariant(new Date(startsAt).getTime() < new Date(endsAt).getTime(), "A data de fim da campanha tem de ser posterior à data de início.");
+}
+
+function requireDraftCampaign(store: DataStore, campaignId: string, actor = "admin") {
+  const campaign = syncCampaignStatus(store, campaignId, actor);
+  invariant(campaign.status === "draft", "Só é possível editar a configuração enquanto a campanha estiver em rascunho.");
+  return campaign;
+}
+
+function assertCampaignCapacities(store: DataStore, campaignId: string) {
+  for (const club of store.clubs.filter((entry) => entry.campaignId === campaignId)) {
+    invariant(getRemainingCapacity(store, club.id) >= 0, `A configuração excede a capacidade disponível do clube ${club.name}.`);
+  }
+}
+
+function createDraftReservationRecord(
+  store: DataStore,
+  input: {
+    campaignId: string;
+    studentId: string;
+    club: Club;
+    reason: string;
+    actor: string;
+  },
+) {
+  const reservation: Reservation = {
+    id: createId(),
+    campaignId: input.campaignId,
+    studentId: input.studentId,
+    slotId: input.club.slotId,
+    clubId: input.club.id,
+    reason: input.reason,
+    createdAt: nowIso(),
+    createdBy: input.actor,
+  };
+  const placement = createReservationPlacement(reservation);
+
+  store.reservations.push(reservation);
+  store.placements.push(placement);
+
+  recordAuditLog(store, {
+    entityType: "reservation",
+    entityId: reservation.id,
+    action: "reservation_created",
+    actor: input.actor,
+    details: {
+      campaignId: input.campaignId,
+      studentId: input.studentId,
+      slotId: input.club.slotId,
+      clubId: input.club.id,
+    },
+  });
+
+  return reservation;
+}
 
 export function resolveCampaignStatus(campaign: Campaign): Campaign["status"] {
   if (campaign.status === "open" && new Date(campaign.endsAt).getTime() <= Date.now()) {
@@ -123,6 +222,7 @@ export function createCampaign(
 ): Campaign {
   const input = campaignInputSchema.parse(payload);
   invariant(store.students.length > 0, "Importe alunos antes de criar uma campanha.");
+  validateCampaignWindow(input.startsAt, input.endsAt);
 
   const slug = slugify(input.slug ?? input.title);
   invariant(!store.campaigns.some((campaign) => campaign.slug === slug), "O identificador público da campanha já existe.");
@@ -256,6 +356,221 @@ export function createCampaign(
   }
 
   return campaign;
+}
+
+export function updateDraftCampaignBasics(
+  store: DataStore,
+  payload: DraftCampaignBasicsInput,
+  actor = "admin",
+) {
+  const input = draftCampaignBasicsSchema.parse(payload);
+  const campaign = requireDraftCampaign(store, input.campaignId, actor);
+  validateCampaignWindow(input.startsAt, input.endsAt);
+
+  campaign.title = input.title;
+  campaign.schoolYear = input.schoolYear;
+  campaign.startsAt = input.startsAt;
+  campaign.endsAt = input.endsAt;
+  campaign.defaultCapacity = input.defaultCapacity;
+
+  for (const code of store.accessCodes.filter((entry) => entry.campaignId === campaign.id && !entry.revokedAt)) {
+    code.expiresAt = input.endsAt;
+  }
+
+  recordAuditLog(store, {
+    entityType: "campaign",
+    entityId: campaign.id,
+    action: "campaign_updated",
+    actor,
+    details: {
+      title: campaign.title,
+      schoolYear: campaign.schoolYear,
+      startsAt: campaign.startsAt,
+      endsAt: campaign.endsAt,
+      defaultCapacity: campaign.defaultCapacity,
+    },
+  });
+
+  return campaign;
+}
+
+export function updateDraftSlot(
+  store: DataStore,
+  payload: DraftSlotUpdateInput,
+  actor = "admin",
+) {
+  const input = draftSlotUpdateSchema.parse(payload);
+  const campaign = requireDraftCampaign(store, input.campaignId, actor);
+  const slot = store.timeSlots.find((entry) => entry.id === input.slotId && entry.campaignId === campaign.id);
+  invariant(slot, "Horário não encontrado para a campanha.");
+
+  const previous = {
+    eligibleGrades: [...slot.eligibleGrades],
+    capacityDivisor: slot.capacityDivisor ?? null,
+    minimumPerClub: slot.minimumPerClub ?? null,
+  };
+
+  try {
+    slot.eligibleGrades = input.eligibleGrades.map((grade) => grade.trim()).filter(Boolean);
+    slot.capacityDivisor = input.capacityDivisor ?? null;
+    slot.minimumPerClub = input.minimumPerClub ?? null;
+    assertCampaignCapacities(store, campaign.id);
+  } catch (error) {
+    slot.eligibleGrades = previous.eligibleGrades;
+    slot.capacityDivisor = previous.capacityDivisor;
+    slot.minimumPerClub = previous.minimumPerClub;
+    throw error;
+  }
+
+  recordAuditLog(store, {
+    entityType: "time_slot",
+    entityId: slot.id,
+    action: "slot_updated",
+    actor,
+    details: {
+      campaignId: campaign.id,
+      eligibleGrades: slot.eligibleGrades,
+      capacityDivisor: slot.capacityDivisor,
+      minimumPerClub: slot.minimumPerClub,
+    },
+  });
+
+  return slot;
+}
+
+export function updateDraftClub(
+  store: DataStore,
+  payload: DraftClubUpdateInput,
+  actor = "admin",
+) {
+  const input = draftClubUpdateSchema.parse(payload);
+  const campaign = requireDraftCampaign(store, input.campaignId, actor);
+  const club = store.clubs.find((entry) => entry.id === input.clubId && entry.campaignId === campaign.id);
+  invariant(club, "Clube não encontrado para a campanha.");
+
+  const previous = {
+    teacher: club.teacher,
+    description: club.description,
+    capacityOverride: club.capacityOverride ?? null,
+  };
+
+  try {
+    club.teacher = input.teacher;
+    club.description = input.description?.trim() ? input.description.trim() : undefined;
+    club.capacityOverride = input.capacityOverride ?? null;
+    assertCampaignCapacities(store, campaign.id);
+  } catch (error) {
+    club.teacher = previous.teacher;
+    club.description = previous.description;
+    club.capacityOverride = previous.capacityOverride;
+    throw error;
+  }
+
+  recordAuditLog(store, {
+    entityType: "club",
+    entityId: club.id,
+    action: "club_updated",
+    actor,
+    details: {
+      campaignId: campaign.id,
+      teacher: club.teacher,
+      description: club.description,
+      capacityOverride: club.capacityOverride,
+    },
+  });
+
+  return club;
+}
+
+export function addDraftReservation(
+  store: DataStore,
+  payload: DraftReservationCreateInput,
+  actor = "admin",
+) {
+  const input = draftReservationCreateSchema.parse(payload);
+  const campaign = requireDraftCampaign(store, input.campaignId, actor);
+  const student = store.students.find((entry) => entry.id === input.studentId);
+  invariant(student, "Aluno não encontrado.");
+  const club = store.clubs.find((entry) => entry.id === input.clubId && entry.campaignId === campaign.id);
+  invariant(club, "Clube não encontrado para a campanha.");
+
+  invariant(
+    !store.reservations.some(
+      (entry) => entry.campaignId === campaign.id && entry.studentId === student.id && entry.slotId === club.slotId,
+    ),
+    "Já existe uma reserva manual para este aluno neste horário.",
+  );
+  invariant(
+    !store.placements.some(
+      (entry) => entry.campaignId === campaign.id && entry.studentId === student.id && entry.slotId === club.slotId,
+    ),
+    "O aluno já tem uma colocação para este horário.",
+  );
+
+  const reservation = createDraftReservationRecord(store, {
+    campaignId: campaign.id,
+    studentId: student.id,
+    club,
+    reason: input.reason,
+    actor,
+  });
+
+  try {
+    assertCampaignCapacities(store, campaign.id);
+  } catch (error) {
+    store.reservations = store.reservations.filter((entry) => entry.id !== reservation.id);
+    store.placements = store.placements.filter(
+      (entry) =>
+        !(
+          entry.source === "reservation" &&
+          entry.campaignId === reservation.campaignId &&
+          entry.studentId === reservation.studentId &&
+          entry.slotId === reservation.slotId &&
+          entry.clubId === reservation.clubId
+        ),
+    );
+    throw error;
+  }
+
+  return reservation;
+}
+
+export function removeDraftReservation(
+  store: DataStore,
+  payload: DraftReservationRemoveInput,
+  actor = "admin",
+) {
+  const input = draftReservationRemoveSchema.parse(payload);
+  const campaign = requireDraftCampaign(store, input.campaignId, actor);
+  const reservation = store.reservations.find((entry) => entry.id === input.reservationId && entry.campaignId === campaign.id);
+  invariant(reservation, "Reserva manual não encontrada para a campanha.");
+
+  store.reservations = store.reservations.filter((entry) => entry.id !== reservation.id);
+  store.placements = store.placements.filter(
+    (entry) =>
+      !(
+        entry.source === "reservation" &&
+        entry.campaignId === reservation.campaignId &&
+        entry.studentId === reservation.studentId &&
+        entry.slotId === reservation.slotId &&
+        entry.clubId === reservation.clubId
+      ),
+  );
+
+  recordAuditLog(store, {
+    entityType: "reservation",
+    entityId: reservation.id,
+    action: "reservation_removed",
+    actor,
+    details: {
+      campaignId: campaign.id,
+      studentId: reservation.studentId,
+      slotId: reservation.slotId,
+      clubId: reservation.clubId,
+    },
+  });
+
+  return reservation;
 }
 
 export function getCampaignBySlug(store: DataStore, campaignSlug: string) {

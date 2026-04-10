@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
+import { getCampaignSessionSecret } from "@/server/lib/runtime-config";
 import { invariant } from "@/server/lib/utils";
 
 const CAMPAIGN_ACCESS_COOKIE = "clubes_campaign_access";
@@ -11,7 +12,7 @@ type CampaignAccessSession = {
 };
 
 function sessionSecret() {
-  return process.env.CAMPAIGN_SESSION_SECRET ?? process.env.ADMIN_PASSWORD ?? "clubes-session-secret";
+  return getCampaignSessionSecret();
 }
 
 function signPayload(payload: string) {

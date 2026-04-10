@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/server/auth/admin-guard";
+import { resolveAppBaseUrl } from "@/server/lib/runtime-config";
 import { exportCampaignAccessPackage } from "@/server/services/campaign-service";
 import { withStore } from "@/server/store/db";
 
@@ -15,10 +16,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
   try {
     const { campaignId } = await context.params;
-    const body = (await request.json().catch(() => ({}))) as { baseUrl?: string; actor?: string };
+    await request.json().catch(() => ({}));
+    const baseUrl = resolveAppBaseUrl(request.headers);
 
     const exportPackage = await withStore((store) =>
-      exportCampaignAccessPackage(store, campaignId, body.baseUrl ?? "http://localhost:3000", body.actor),
+      exportCampaignAccessPackage(store, campaignId, baseUrl, "admin"),
     );
 
     return NextResponse.json(exportPackage);

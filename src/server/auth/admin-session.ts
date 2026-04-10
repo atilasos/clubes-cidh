@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
+import { getAdminPassword } from "@/server/lib/runtime-config";
 
 const ADMIN_SESSION_COOKIE = "clubes_admin_session";
 
@@ -9,7 +10,7 @@ function hash(input: string) {
 }
 
 function expectedPassword() {
-  return process.env.ADMIN_PASSWORD ?? "admin123";
+  return getAdminPassword();
 }
 
 function sessionValue() {

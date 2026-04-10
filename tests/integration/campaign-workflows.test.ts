@@ -1,9 +1,21 @@
+import { NextRequest } from 'next/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { closeCampaign, commitCampaignAllocation, finalizeCampaign, previewCampaignAllocation } from '../../src/server/services/campaign-operations-service';
+import { closeCampaign, commitCampaignAllocation, finalizeCampaign, openCampaign, previewCampaignAllocation } from '../../src/server/services/campaign-operations-service';
+import { POST as exportAccessRoute } from '../../src/app/api/admin/campaigns/[campaignId]/access-export/route';
 import { POST as submitEnrollmentRoute } from '../../src/app/api/public/campaigns/[campaignSlug]/submit/route';
-import { createCampaign, exportCampaignAccessPackage, recordCampaignException } from '../../src/server/services/campaign-service';
+import {
+  addDraftReservation,
+  createCampaign,
+  exportCampaignAccessPackage,
+  recordCampaignException,
+  removeDraftReservation,
+  updateDraftCampaignBasics,
+  updateDraftClub,
+  updateDraftSlot,
+} from '../../src/server/services/campaign-service';
 import { identifyStudentForCampaign, identifyStudentForCampaignInStore } from '../../src/server/services/enrollment-service';
+import { adminCookieName, createAdminCookieValue } from '../../src/server/auth/admin-session';
 import { importStudents } from '../../src/server/services/student-import-service';
 import { readStore, withStore, writeStore } from '../../src/server/store/db';
 import type { DataStore } from '../../src/server/types';
@@ -50,6 +62,7 @@ function importFixtureStudents(store: DataStore) {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
 });
 
 describe('campaign workflows integration', () => {
@@ -183,6 +196,135 @@ describe('campaign workflows integration', () => {
         reservations: [{ studentNumber: '2025001', clubName: 'Robótica', reason: 'Reserva ambígua' }],
       }),
     ).toThrow(/horário/i);
+  });
+
+  it('allows draft campaigns to be refined after creation using stored campaign data', () => {
+    const store = createEmptyStore();
+    importFixtureStudents(store);
+
+    const campaign = createCampaign(store, {
+      title: 'Campanha editável',
+      semester: 1,
+      schoolYear: '2025/2026',
+      startsAt: '2026-04-10T09:00:00.000Z',
+      endsAt: '2026-04-20T18:00:00.000Z',
+      defaultCapacity: 1,
+      openImmediately: false,
+      slots: [
+        {
+          label: slotFixtures[0].label,
+          startsAt: '2026-04-10T14:00:00.000Z',
+          endsAt: '2026-04-10T15:00:00.000Z',
+          eligibleGrades: ['5'],
+        },
+      ],
+      clubs: [{ name: 'Teatro', teacher: 'Prof. Sofia', slotLabel: slotFixtures[0].label, capacityOverride: 1 }],
+      reservations: [],
+    });
+
+    const slot = store.timeSlots.find((entry) => entry.campaignId === campaign.id)!;
+    const club = store.clubs.find((entry) => entry.campaignId === campaign.id)!;
+    const student = store.students.find((entry) => entry.studentNumber === '2025001')!;
+
+    updateDraftCampaignBasics(store, {
+      campaignId: campaign.id,
+      title: 'Campanha editável revista',
+      schoolYear: '2026/2027',
+      startsAt: '2026-04-11T09:00:00.000Z',
+      endsAt: '2026-04-21T18:00:00.000Z',
+      defaultCapacity: 2,
+    });
+    updateDraftSlot(store, {
+      campaignId: campaign.id,
+      slotId: slot.id,
+      eligibleGrades: ['5', '6'],
+      capacityDivisor: 2,
+      minimumPerClub: 1,
+    });
+    updateDraftClub(store, {
+      campaignId: campaign.id,
+      clubId: club.id,
+      teacher: 'Prof. Sofia Silva',
+      description: 'Laboratório de expressão dramática',
+      capacityOverride: 2,
+    });
+    const reservation = addDraftReservation(store, {
+      campaignId: campaign.id,
+      studentId: student.id,
+      clubId: club.id,
+      reason: 'Apoio pedagógico',
+    });
+
+    expect(store.campaigns.find((entry) => entry.id === campaign.id)).toMatchObject({
+      title: 'Campanha editável revista',
+      schoolYear: '2026/2027',
+      defaultCapacity: 2,
+    });
+    expect(store.timeSlots.find((entry) => entry.id === slot.id)).toMatchObject({
+      eligibleGrades: ['5', '6'],
+      capacityDivisor: 2,
+      minimumPerClub: 1,
+    });
+    expect(store.clubs.find((entry) => entry.id === club.id)).toMatchObject({
+      teacher: 'Prof. Sofia Silva',
+      description: 'Laboratório de expressão dramática',
+      capacityOverride: 2,
+    });
+    expect(store.reservations).toHaveLength(1);
+    expect(store.placements.filter((entry) => entry.source === 'reservation')).toHaveLength(1);
+
+    removeDraftReservation(store, { campaignId: campaign.id, reservationId: reservation.id });
+
+    expect(store.reservations).toHaveLength(0);
+    expect(store.placements.filter((entry) => entry.source === 'reservation')).toHaveLength(0);
+    expect(store.auditLogs.map((entry) => entry.action)).toEqual(
+      expect.arrayContaining([
+        'campaign_created',
+        'campaign_updated',
+        'slot_updated',
+        'club_updated',
+        'reservation_created',
+        'reservation_removed',
+      ]),
+    );
+  });
+
+  it('rejects draft configuration changes once the campaign is open', () => {
+    const store = createEmptyStore();
+    importFixtureStudents(store);
+
+    const campaign = createCampaign(store, {
+      title: 'Campanha fechada à edição',
+      semester: 1,
+      schoolYear: '2025/2026',
+      startsAt: '2026-04-10T09:00:00.000Z',
+      endsAt: '2026-04-20T18:00:00.000Z',
+      defaultCapacity: 1,
+      openImmediately: false,
+      slots: [
+        {
+          label: slotFixtures[0].label,
+          startsAt: '2026-04-10T14:00:00.000Z',
+          endsAt: '2026-04-10T15:00:00.000Z',
+          eligibleGrades: ['5'],
+        },
+      ],
+      clubs: [{ name: 'Teatro', teacher: 'Prof. Sofia', slotLabel: slotFixtures[0].label, capacityOverride: 1 }],
+      reservations: [],
+    });
+
+    openCampaign(store, campaign.id);
+
+    expect(() =>
+      updateDraftCampaignBasics(store, {
+        campaignId: campaign.id,
+        title: 'Já não devia editar',
+        schoolYear: campaign.schoolYear,
+        startsAt: campaign.startsAt,
+        endsAt: campaign.endsAt,
+        defaultCapacity: campaign.defaultCapacity,
+      }),
+    ).toThrow(/rascunho/i);
   });
 
   it('creates a dry-run allocation preview without persisting and commits placements when confirmed', () => {
@@ -380,6 +522,57 @@ describe('campaign workflows integration', () => {
     const persisted = await readStore();
     expect(persisted.submissions.filter((submission) => submission.campaignId === campaign.id)).toHaveLength(1);
     expect(persisted.placements.filter((placement) => placement.campaignId === campaign.id && placement.clubId === robotics.id)).toHaveLength(1);
+  });
+
+  it('uses the canonical base URL and server-owned actor on admin access exports', async () => {
+    const store = createEmptyStore();
+    importFixtureStudents(store);
+
+    const campaign = createCampaign(store, {
+      title: 'Exportação segura',
+      semester: 1,
+      schoolYear: '2025/2026',
+      startsAt: '2026-04-10T09:00:00.000Z',
+      endsAt: '2026-04-20T18:00:00.000Z',
+      defaultCapacity: 1,
+      openImmediately: false,
+      slots: [
+        {
+          label: slotFixtures[0].label,
+          startsAt: '2026-04-10T14:00:00.000Z',
+          endsAt: '2026-04-10T15:00:00.000Z',
+          eligibleGrades: ['5'],
+        },
+      ],
+      clubs: [{ name: 'Teatro', teacher: 'Prof. Sofia', slotLabel: slotFixtures[0].label, capacityOverride: 1 }],
+      reservations: [],
+    });
+
+    await writeStore(store);
+    vi.stubEnv('ADMIN_PASSWORD', 'segredo-admin');
+    vi.stubEnv('APP_BASE_URL', 'https://portal.example.edu/');
+
+    const request = new NextRequest(`https://evil.example/api/admin/campaigns/${campaign.id}/access-export`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: `${adminCookieName}=${createAdminCookieValue()}`,
+      },
+      body: JSON.stringify({ baseUrl: 'https://evil.example', actor: 'mallory' }),
+    });
+
+    const response = await exportAccessRoute(request, { params: Promise.resolve({ campaignId: campaign.id }) });
+
+    expect(response.status).toBe(200);
+
+    const payload = (await response.json()) as { rows: Array<{ publicUrl: string }> };
+    expect(payload.rows[0]?.publicUrl).toBe(`https://portal.example.edu/campaign/${campaign.slug}`);
+
+    const persisted = await readStore();
+    expect(persisted.auditLogs[0]).toMatchObject({
+      action: 'access_export_generated',
+      actor: 'admin',
+    });
   });
 
   it('recovers the shared store queue after a failed mutation so later writes still succeed', async () => {
