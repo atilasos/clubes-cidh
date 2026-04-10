@@ -33,6 +33,7 @@ O repositório foi iniciado de raiz. Este documento define critérios de revisã
 
 ### Evidência esperada
 - Testes unitários para mascaramento e validade/expiração de códigos.
+- Configuração em produção a falhar de forma fechada sem `ADMIN_PASSWORD`, `CAMPAIGN_SESSION_SECRET` e `APP_BASE_URL`.
 - Verificação manual de logs estruturados e PDFs.
 - Métricas/alertas para falhas de identificação e corridas da última vaga.
 
@@ -42,7 +43,7 @@ O repositório foi iniciado de raiz. Este documento define critérios de revisã
 - Repetições inevitáveis na distribuição precisam de uma razão explícita.
 
 ### Evidência esperada
-- Eventos estruturados para `reservation_created`, `campaign_opened`, `placement_committed` e `campaign_archived`.
+- Eventos estruturados para `reservation_created`, `reservation_removed`, `campaign_updated`, `slot_updated`, `club_updated`, `campaign_opened`, `placement_committed` e `campaign_archived`.
 - Cobertura de integração a validar a persistência dos registos críticos de auditoria.
 
 ## Critério 5 — Testes mínimos antes da disponibilização
@@ -57,6 +58,7 @@ O repositório foi iniciado de raiz. Este documento define critérios de revisã
 
 ### Testes de integração
 - Importação com rejeições.
+- Edição de campanha em rascunho com persistência das alterações reais.
 - Identificação pública com identificador + código.
 - Submissão concorrente para última vaga.
 - Simulação e confirmação da distribuição.
@@ -72,9 +74,14 @@ O repositório foi iniciado de raiz. Este documento define critérios de revisã
 - `campaign_last_seat_race_total`
 - `allocation_repeat_override_total`
 - `pdf_generation_failures_total`
+- falhas de configuração/segredos obrigatórios em produção devem ser visíveis logo no ponto de uso.
 
 ### Logs/eventos obrigatórios
 - `reservation_created`
+- `reservation_removed`
+- `campaign_updated`
+- `slot_updated`
+- `club_updated`
 - `campaign_opened`
 - `placement_committed`
 - `campaign_archived`

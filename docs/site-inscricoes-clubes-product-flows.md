@@ -22,13 +22,13 @@ Este documento traduz o PRD em fluxos operacionais claros para implementação, 
 - Guardar trilho de auditoria para importação e correções posteriores.
 
 ### 2. Preparar campanha
-1. A administração cria a campanha com nome, semestre, período e identificador público.
-2. A administração configura os horários.
-3. A administração associa os clubes a cada horário.
-4. O sistema calcula vagas pela regra predefinida.
-5. A administração pode aplicar um ajuste manual auditado por clube/horário.
-6. A administração regista reservas manuais antes da abertura.
-7. O sistema gera o pacote de acesso da campanha (ligação + códigos) para envio externo.
+1. A administração cria a campanha, por defeito, em estado `draft` com nome, semestre, período e identificador público.
+2. A administração revê a campanha no detalhe usando os dados reais já persistidos.
+3. A administração ajusta regras por horário (anos elegíveis, divisor, mínimo por clube).
+4. A administração ajusta professor, descrição e capacidade manual por clube.
+5. A administração regista e remove reservas manuais antes da abertura.
+6. O sistema calcula vagas pela regra predefinida e aplica os ajustes auditados.
+7. O sistema gera o pacote de acesso da campanha (ligação + códigos) a partir da URL pública canónica.
 
 **Regras obrigatórias**
 - Reservas consomem capacidade antes da abertura ao público.
@@ -42,7 +42,7 @@ Este documento traduz o PRD em fluxos operacionais claros para implementação, 
 
 **Checklist de abertura**
 - Alunos importados com sucesso.
-- Horários e clubes configurados.
+- Horários e clubes configurados e revistos no detalhe administrativo.
 - Vagas revistas.
 - Reservas aplicadas.
 - Códigos de acesso gerados.
@@ -83,6 +83,7 @@ Este documento traduz o PRD em fluxos operacionais claros para implementação, 
 - Limitação de tentativas por IP e/ou impressão digital do navegador.
 - Mensagens de erro sem revelar se o identificador existe.
 - Expiração e rotação de códigos de acesso.
+- Sessão temporária limpa quando o contexto do aluno deixa de ser válido.
 
 ### 2. Escolha de clubes
 1. O sistema mostra apenas horários e clubes elegíveis para aquele aluno.
@@ -132,7 +133,7 @@ Este documento traduz o PRD em fluxos operacionais claros para implementação, 
 - Registo de auditoria das reservas, dos ajustes manuais, das colocações e do arquivo.
 
 ## Checklist manual de revisão funcional
-- A interface de configuração permite perceber claramente horários, vagas e reservas.
+- A interface de configuração permite criar em rascunho, rever dados reais e ajustar horários, clubes e reservas antes da abertura.
 - O portal mostra indisponibilidade sem estados ambíguos.
 - O desaparecimento de clubes esgotados é coerente após submissões reais.
 - A simulação é distinguível da confirmação final.
