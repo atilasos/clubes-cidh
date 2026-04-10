@@ -15,9 +15,11 @@ Este projeto existe para ajudar a escola a:
 O repositório já contém uma base funcional de MVP com:
 - app Next.js + TypeScript;
 - painel administrativo inicial;
+- edição administrativa estruturada sobre campanhas em rascunho com dados reais;
 - fluxo público inicial para identificação e submissão;
 - APIs para importação, campanhas, distribuição, finalização e submissão pública;
 - serviços de domínio para capacidade, elegibilidade, inscrição, alocação, arquivo e segurança;
+- endurecimento inicial de produção para segredos obrigatórios, URL pública canónica, headers de segurança e sessões temporárias;
 - suite inicial de testes unitários.
 
 ### Nota importante
@@ -63,7 +65,14 @@ Depois edite `.env`:
 
 ```bash
 ADMIN_PASSWORD=escolha-uma-password-segura
+CAMPAIGN_SESSION_SECRET=defina-um-segredo-dedicado-para-a-sessao-publica
+APP_BASE_URL=http://localhost:3000
 ```
+
+Variáveis principais:
+- `ADMIN_PASSWORD`: palavra-passe obrigatória do painel administrativo; em produção não existe fallback.
+- `CAMPAIGN_SESSION_SECRET`: segredo da sessão temporária do fluxo público; em produção não existe fallback.
+- `APP_BASE_URL`: URL pública canónica usada para gerar ligações dos pacotes de acesso; em produção deve apontar para o endereço real da app.
 
 ### Desenvolvimento
 
@@ -149,7 +158,7 @@ docs/
 ## Principais áreas
 
 ### `src/app/admin`
-Fluxos administrativos para preparar campanhas, rever estados e finalizar o processo.
+Fluxos administrativos para preparar campanhas, editar campanhas em rascunho com dados reais, rever estados e finalizar o processo.
 
 ### `src/app/campaign`
 Fluxos públicos para identificação do aluno e submissão das escolhas.
@@ -180,11 +189,11 @@ Cobertura inicial da lógica crítica do domínio.
 
 ## Funcionalidades previstas / em evolução
 
-Ainda falta completar, entre outras coisas:
-- endurecimento operacional adicional para produção;
-- evolução da interface administrativa para edição mais rica após criação inicial;
-- integração do fluxo administrativo com dados reais numa interface mais completa;
-- endurecimento adicional do fluxo público para produção.
+O repositório já cobre a edição estruturada em rascunho, a gestão administrativa sobre dados reais e o endurecimento base dentro da própria aplicação.
+
+Continuam a poder evoluir, sobretudo fora da fronteira direta do repositório:
+- endurecimento distribuído para produção multi-instância (por exemplo, rate limiting partilhado, CAPTCHA/WAF e observabilidade externa);
+- automatização operacional externa para distribuição/rotação de acessos e integração com canais de comunicação da escola.
 
 ## GitHub
 
