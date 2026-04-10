@@ -20,6 +20,7 @@ export default async function CampaignEnrollPage({ params, searchParams }: Campa
   const success = resolvedSearchParams.success === "1";
   const errorMessage = resolvedSearchParams.error?.trim() ?? "";
   const session = await readCampaignAccessSession(campaignSlug);
+  let hasActiveSession = Boolean(session);
 
   let context:
     | Awaited<ReturnType<typeof getStudentEnrollmentContext>>
@@ -30,6 +31,8 @@ export default async function CampaignEnrollPage({ params, searchParams }: Campa
     try {
       context = await getStudentEnrollmentContext(campaignSlug, session.studentId, session.accessCode);
     } catch (error) {
+      await clearCampaignAccessSession();
+      hasActiveSession = false;
       loadError = error instanceof Error ? error.message : "Não foi possível carregar as opções da campanha.";
     }
   }
@@ -78,7 +81,7 @@ export default async function CampaignEnrollPage({ params, searchParams }: Campa
       <div className="grid two">
         <section className="card stack">
           <h2>Aluno</h2>
-          {!session && !success ? (
+          {!hasActiveSession && !success ? (
             <>
               <p className="status">Primeiro valide o aluno para obter as opções elegíveis desta campanha.</p>
               <div className="row">

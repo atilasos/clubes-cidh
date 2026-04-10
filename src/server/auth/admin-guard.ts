@@ -9,6 +9,7 @@ function cookieOptions() {
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
+    maxAge: 8 * 60 * 60,
   };
 }
 
