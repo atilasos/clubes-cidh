@@ -80,13 +80,17 @@ function auditActionLabel(action: string) {
     students_imported: "alunos importados",
     campaign_opened: "campanha aberta",
     campaign_created: "campanha criada",
+    campaign_updated: "campanha atualizada",
     campaign_closed: "campanha fechada",
     campaign_archived: "campanha arquivada",
     access_export_generated: "pacote de acesso gerado",
     reservation_created: "reserva criada",
+    reservation_removed: "reserva removida",
     placement_committed: "colocação confirmada",
     allocation_committed: "distribuição confirmada",
     capacity_override_configured: "ajuste manual de vagas configurado",
+    slot_updated: "horário atualizado",
+    club_updated: "clube atualizado",
     placement_exception_recorded: "exceção de colocação registada",
     placement_exception_updated: "exceção de colocação atualizada",
   }[action] ?? action;
@@ -195,7 +199,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
           <InfoCard title="Âmbito" eyebrow="Operações disponíveis">
             <ul>
               <li>Importar ficheiros CSV de alunos.</li>
-              <li>Criar campanhas com horários, clubes e reservas.</li>
+              <li>Criar campanhas em rascunho com horários, clubes e reservas.</li>
               <li>Exportar acessos, rever listas, distribuir e finalizar.</li>
             </ul>
           </InfoCard>
@@ -289,6 +293,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         </InfoCard>
 
         <InfoCard title="Criar campanha" eyebrow="Preparação">
+          <p className="status">Recomendado: criar em rascunho, rever os dados reais da campanha e abrir só quando a configuração estiver pronta.</p>
           <form className="stack" action={createCampaignAction}>
             <div className="grid two">
               <label className="stack">
@@ -323,8 +328,8 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
                 <input type="number" min="1" name="defaultCapacity" defaultValue="1" required />
               </label>
               <label className="row">
-                <input type="checkbox" name="openImmediately" defaultChecked />
-                <span>Abrir imediatamente</span>
+                <input type="checkbox" name="openImmediately" />
+                <span>Abrir imediatamente depois da criação</span>
               </label>
             </div>
 
