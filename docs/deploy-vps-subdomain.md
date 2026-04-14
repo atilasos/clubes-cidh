@@ -58,7 +58,7 @@ sudo ufw enable
 ```bash
 git clone https://github.com/atilasos/clubes-cidh.git
 cd clubes-cidh
-cp .env.example .env.production
+cp .env.production.example .env.production
 ```
 
 ## 4. Preencher `.env.production`

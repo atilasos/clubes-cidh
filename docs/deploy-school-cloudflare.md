@@ -48,7 +48,7 @@ docker compose version
 ```bash
 git clone https://github.com/atilasos/clubes-cidh.git
 cd clubes-cidh
-cp .env.example .env.production
+cp .env.production.example .env.production
 ```
 
 ## 3. Preencher `.env.production`
