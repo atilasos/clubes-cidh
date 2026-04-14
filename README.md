@@ -138,6 +138,7 @@ Ficheiros-base de produção incluídos:
 - `Dockerfile`
 - `.dockerignore`
 - `.env.example`
+- `.env.production.example`
 - `.github/workflows/ci.yml`
 
 Para produção, recomenda-se usar `DATABASE_URL` com PostgreSQL real. Se `DATABASE_URL` estiver ausente, a aplicação continua a cair para o modo JSON local, o que só deve ser usado em desenvolvimento ou em cenários muito controlados.

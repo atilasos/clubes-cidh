@@ -9,6 +9,7 @@ out/
 .env
 .env.*
 !.env.example
+!.env.production.example
 npm-debug.log*
 tsconfig.tsbuildinfo
 .DS_Store
