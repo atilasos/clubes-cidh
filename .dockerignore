@@ -1,0 +1,15 @@
+.git
+.github
+.next
+.data
+.env*
+coverage
+deploy
+docs
+node_modules
+npm-debug.log*
+README.md
+tests
+vitest.config.ts
+*.local
+*.sql
