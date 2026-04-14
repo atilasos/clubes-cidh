@@ -124,6 +124,24 @@ npm run typecheck
 npm run lint
 ```
 
+## Deployment
+
+O repositório inclui agora material mínimo para colocar o site online com PostgreSQL e Docker:
+
+- checklist de produção: `docs/deploy-checklist.md`
+- máquina da escola + Docker + Cloudflare Tunnel: `docs/deploy-school-cloudflare.md`
+- VPS + subdomínio + Docker + Caddy: `docs/deploy-vps-subdomain.md`
+- exemplos de infraestrutura: `deploy/`
+
+Ficheiros-base de produção incluídos:
+
+- `Dockerfile`
+- `.dockerignore`
+- `.env.example`
+- `.github/workflows/ci.yml`
+
+Para produção, recomenda-se usar `DATABASE_URL` com PostgreSQL real. Se `DATABASE_URL` estiver ausente, a aplicação continua a cair para o modo JSON local, o que só deve ser usado em desenvolvimento ou em cenários muito controlados.
+
 ## Verificação atual
 
 Com o estado atual do repositório, os seguintes comandos passam:
